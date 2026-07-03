@@ -6,6 +6,7 @@
 <title>Slide Split — Lyrics to Slides</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --bg: #1B1D22;
@@ -460,6 +461,11 @@ Was blind but now I see"></textarea>
 <div class="toast" id="toast"></div>
 
 <script>
+  // ---- Supabase config: fill these in with your own values ----
+  const SUPABASE_URL = 'YOUR_PROJECT_URL_HERE';
+  const SUPABASE_ANON_KEY = 'YOUR_ANON_PUBLIC_KEY_HERE';
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
   let mode = 'blank';
   let slides = [];
   let format = 'none';
@@ -608,168 +614,29 @@ Was blind but now I see"></textarea>
     URL.revokeObjectURL(url);
   });
 
-  // ---- Song library (persisted via window.storage) ----
-
-  function songId(){
-    return 'song_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
-  }
+  // ---- Song library (persisted via Supabase) ----
 
   async function loadAllSongs(){
     try{
-      const listRes = await window.storage.list('song:', false);
-      const keys = (listRes && listRes.keys) || [];
-      const songs = [];
-      for(const key of keys){
-        try{
-          const res = await window.storage.get(key, false);
-          if(res && res.value){
-            songs.push(JSON.parse(res.value));
-          }
-        }catch(e){ /* skip unreadable entry */ }
-      }
-      songs.sort((a,b) => (b.updatedAt||0) - (a.updatedAt||0));
-      allSongs = songs;
+      const { data, error } = await db
+        .from('songs')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if(error) throw error;
+      allSongs = (data || []).map(row => ({
+        id: row.id,
+        title: row.title,
+        artist: row.artist,
+        lyrics: row.lyrics,
+        mode: row.mode || 'blank',
+        lineCount: row.line_count || 2,
+        format: row.format || 'none',
+        updatedAt: row.created_at
+      }));
     }catch(e){
+      console.error(e);
       allSongs = [];
-    }
-    renderSongList();
-  }
-
-  function snippetAround(text, query){
-    const idx = text.toLowerCase().indexOf(query.toLowerCase());
-    if(idx === -1) return text.slice(0, 90) + (text.length > 90 ? '…' : '');
-    const start = Math.max(0, idx - 30);
-    const end = Math.min(text.length, idx + query.length + 40);
-    let snippet = text.slice(start, end);
-    if(start > 0) snippet = '…' + snippet;
-    if(end < text.length) snippet += '…';
-    const re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'ig');
-    return escapeHtml(snippet).replace(re, '<mark>$1</mark>');
-  }
-
-  function renderSongList(){
-    const query = searchEl.value.trim();
-    let results = allSongs;
-
-    if(query){
-      const q = query.toLowerCase();
-      results = allSongs.filter(s =>
-        (s.title || '').toLowerCase().includes(q) ||
-        (s.artist || '').toLowerCase().includes(q) ||
-        (s.lyrics || '').toLowerCase().includes(q)
-      );
-    }
-
-    songCountEl.textContent = allSongs.length + (allSongs.length === 1 ? ' saved' : ' saved');
-
-    if(results.length === 0){
-      songListEl.innerHTML = `<div class="empty">${allSongs.length === 0 ? 'No saved songs yet. Split some lyrics above, then hit Save song.' : 'No songs match your search.'}</div>`;
-      return;
-    }
-
-    songListEl.innerHTML = results.map(s => {
-      const titleMatch = query && (s.title||'').toLowerCase().includes(query.toLowerCase());
-      const snippet = query && !titleMatch
-        ? snippetAround(s.lyrics || '', query)
-        : escapeHtml((s.lyrics||'').split('\n').find(l=>l.trim()) || '').slice(0,90);
-      return `
-        <div class="song-item" data-id="${s.id}">
-          <div class="song-main">
-            <p class="song-title">${escapeHtml(s.title || 'Untitled')}</p>
-            ${s.artist ? `<p class="song-artist">${escapeHtml(s.artist)}</p>` : ''}
-            <p class="song-snippet">${snippet}</p>
-          </div>
-          <button class="del-btn" data-del="${s.id}">DELETE</button>
-        </div>
-      `;
-    }).join('');
-  }
-
-  searchEl.addEventListener('input', renderSongList);
-
-  songListEl.addEventListener('click', (e) => {
-    const delId = e.target.dataset.del;
-    if(delId){
-      e.stopPropagation();
-      deleteSong(delId);
-      return;
-    }
-    const item = e.target.closest('.song-item');
-    if(item){
-      loadSong(item.dataset.id);
-    }
-  });
-
-  function loadSong(id){
-    const song = allSongs.find(s => s.id === id);
-    if(!song) return;
-    editingId = song.id;
-    titleEl.value = song.title || '';
-    artistEl.value = song.artist || '';
-    lyricsEl.value = song.lyrics || '';
-    mode = song.mode || 'blank';
-    if(mode === 'count'){
-      modeCountBtn.click();
-      lineCountSlider.value = song.lineCount || 2;
-      lineCountVal.textContent = lineCountSlider.value + ' lines / slide';
-    } else {
-      modeBlankBtn.click();
-    }
-    format = song.format || 'none';
-    formatBtns.forEach(b => b.classList.toggle('active', b.dataset.format === format));
-    slides = mode === 'blank'
-          ? splitByBlankLines(text)
-      : splitByLineCount(text, parseInt(lineCountSlider.value, 10));
-    render();
-  });
-
-  copyBtn.addEventListener('click', async () => {
-    if(slides.length === 0) return;
-    const joined = slides.map(applyFormat).join('\n\n---\n\n');
-    try{
-      await navigator.clipboard.writeText(joined);
-      copyBtn.textContent = 'Copied!';
-      setTimeout(() => { copyBtn.textContent = 'Copy all (' + slides.length + ')'; }, 1400);
-    }catch(e){
-      alert('Could not copy — select and copy manually.');
-    }
-  });
-
-  downloadBtn.addEventListener('click', () => {
-    if(slides.length === 0) return;
-    const joined = slides.map(applyFormat).join('\n\n---\n\n');
-    const blob = new Blob([joined], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = ((titleEl.value.trim() || 'slides').replace(/\s+/g,'-').toLowerCase()) + '.txt';
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-
-  // ---- Song library (persisted via window.storage) ----
-
-  function songId(){
-    return 'song_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
-  }
-
-  async function loadAllSongs(){
-    try{
-      const listRes = await window.storage.list('song:', false);
-      const keys = (listRes && listRes.keys) || [];
-      const songs = [];
-      for(const key of keys){
-        try{
-          const res = await window.storage.get(key, false);
-          if(res && res.value){
-            songs.push(JSON.parse(res.value));
-          }
-        }catch(e){ /* skip unreadable entry */ }
-      }
-      songs.sort((a,b) => (b.updatedAt||0) - (a.updatedAt||0));
-      allSongs = songs;
-    }catch(e){
-      allSongs = [];
+      showToast('Could not load songs');
     }
     renderSongList();
   }
@@ -864,11 +731,13 @@ Was blind but now I see"></textarea>
 
   async function deleteSong(id){
     try{
-      await window.storage.delete('song:' + id, false);
+      const { error } = await db.from('songs').delete().eq('id', id);
+      if(error) throw error;
       showToast('Deleted');
       if(editingId === id) editingId = null;
       await loadAllSongs();
     }catch(e){
+      console.error(e);
       showToast('Could not delete');
     }
   }
@@ -885,27 +754,26 @@ Was blind but now I see"></textarea>
       showToast('Add lyrics first');
       return;
     }
-    const id = editingId || songId();
-    const song = {
-      id,
+    const row = {
       title,
       artist: artistEl.value.trim(),
       lyrics,
       mode,
-      lineCount: parseInt(lineCountSlider.value, 10),
-      format,
-      updatedAt: Date.now()
+      line_count: parseInt(lineCountSlider.value, 10),
+      format
     };
     try{
-      const res = await window.storage.set('song:' + id, JSON.stringify(song), false);
-      if(!res){
-        showToast('Save failed — try again');
-        return;
+      let error;
+      if(editingId){
+        ({ error } = await db.from('songs').update(row).eq('id', editingId));
+      } else {
+        ({ error } = await db.from('songs').insert(row));
       }
-      editingId = id;
+      if(error) throw error;
       showToast('Saved "' + title + '"');
       await loadAllSongs();
     }catch(e){
+      console.error(e);
       showToast('Save failed — try again');
     }
   });
@@ -915,25 +783,3 @@ Was blind but now I see"></textarea>
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
