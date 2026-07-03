@@ -331,6 +331,43 @@
     color: var(--amber);
     border-radius: 2px;
   }
+  .song-tags{
+    display:flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 7px;
+  }
+  .tag-chip{
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.03em;
+    color: var(--amber);
+    background: rgba(232,163,61,0.1);
+    border: 1px solid var(--amber-dim);
+    border-radius: 10px;
+    padding: 2px 8px;
+  }
+  .filter-row{
+    display:flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .filter-pill{
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 5px 11px;
+    cursor: pointer;
+  }
+  .filter-pill.active{
+    color: var(--amber);
+    border-color: var(--amber);
+    background: rgba(232,163,61,0.1);
+  }
   .del-btn{
     background: none;
     border: none;
@@ -397,6 +434,13 @@
       </div>
     </div>
 
+    <div class="field-row">
+      <div class="field">
+        <label for="tags">Tags (comma separated)</label>
+        <input type="text" id="tags" placeholder="Christmas, fast, opener">
+      </div>
+    </div>
+
     <label for="lyrics">Paste lyrics</label>
     <textarea id="lyrics" placeholder="Verse 1
 Amazing grace how sweet the sound
@@ -453,8 +497,9 @@ Was blind but now I see"></textarea>
       <span class="count" id="songCount">0 saved</span>
     </div>
     <div class="search-wrap">
-      <input type="text" id="search" placeholder="Search by title or a phrase from the lyrics…">
+      <input type="text" id="search" placeholder="Search by title, first line, tag, or any phrase…">
     </div>
+    <div class="filter-row" id="filterRow"></div>
     <div class="song-list" id="songList">
       <div class="empty">No saved songs yet. Split some lyrics above, then hit Save song.</div>
     </div>
@@ -466,18 +511,20 @@ Was blind but now I see"></textarea>
 
 <script>
   // ---- Supabase config: fill these in with your own values ----
-  const SUPABASE_URL = 'https://rfdpgydjhrwwzinvwsaf.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmZHBneWRqaHJ3d3ppbnZ3c2FmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwNjQ2OTEsImV4cCI6MjA5ODY0MDY5MX0.7O0K_SlicbdgO0epyOWmQIwtCIQvXs4c1iaJtpkG24I';
+  const SUPABASE_URL = 'YOUR_PROJECT_URL_HERE';
+  const SUPABASE_ANON_KEY = 'YOUR_ANON_PUBLIC_KEY_HERE';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let mode = 'blank';
   let slides = [];
   let format = 'none';
   let allSongs = [];
+  let activeTagFilter = null;
   let editingId = null;
 
   const titleEl = document.getElementById('title');
   const artistEl = document.getElementById('artist');
+  const tagsEl = document.getElementById('tags');
   const lyricsEl = document.getElementById('lyrics');
   const modeBlankBtn = document.getElementById('modeBlank');
   const modeCountBtn = document.getElementById('modeCount');
@@ -495,6 +542,7 @@ Was blind but now I see"></textarea>
   const downloadBtn = document.getElementById('downloadBtn');
   const searchEl = document.getElementById('search');
   const songListEl = document.getElementById('songList');
+  const filterRowEl = document.getElementById('filterRow');
   const songCountEl = document.getElementById('songCount');
   const toastEl = document.getElementById('toast');
 
@@ -637,6 +685,7 @@ Was blind but now I see"></textarea>
         mode: row.mode || 'blank',
         lineCount: row.line_count || 2,
         format: row.format || 'none',
+        tags: row.tags || [],
         updatedAt: row.created_at
       }));
     }catch(e){
@@ -659,20 +708,48 @@ Was blind but now I see"></textarea>
     return escapeHtml(snippet).replace(re, '<mark>$1</mark>');
   }
 
+  function renderFilterPills(){
+    const tagSet = new Set();
+    allSongs.forEach(s => (s.tags || []).forEach(t => tagSet.add(t)));
+    const tags = Array.from(tagSet).sort();
+
+    if(tags.length === 0){
+      filterRowEl.innerHTML = '';
+      return;
+    }
+
+    filterRowEl.innerHTML = tags.map(t => `
+      <button class="filter-pill ${activeTagFilter === t ? 'active' : ''}" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</button>
+    `).join('');
+  }
+
+  filterRowEl.addEventListener('click', (e) => {
+    const tag = e.target.dataset.tag;
+    if(!tag) return;
+    activeTagFilter = activeTagFilter === tag ? null : tag;
+    renderSongList();
+  });
+
   function renderSongList(){
     const query = searchEl.value.trim();
     let results = allSongs;
 
+    if(activeTagFilter){
+      results = results.filter(s => (s.tags || []).includes(activeTagFilter));
+    }
+
     if(query){
       const q = query.toLowerCase();
-      results = allSongs.filter(s =>
+      results = results.filter(s =>
         (s.title || '').toLowerCase().includes(q) ||
         (s.artist || '').toLowerCase().includes(q) ||
-        (s.lyrics || '').toLowerCase().includes(q)
+        (s.lyrics || '').toLowerCase().includes(q) ||
+        (s.tags || []).some(t => t.toLowerCase().includes(q))
       );
     }
 
     songCountEl.textContent = allSongs.length + (allSongs.length === 1 ? ' saved' : ' saved');
+    renderFilterPills();
 
     if(results.length === 0){
       songListEl.innerHTML = `<div class="empty">${allSongs.length === 0 ? 'No saved songs yet. Split some lyrics above, then hit Save song.' : 'No songs match your search.'}</div>`;
@@ -684,12 +761,16 @@ Was blind but now I see"></textarea>
       const snippet = query && !titleMatch
         ? snippetAround(s.lyrics || '', query)
         : escapeHtml((s.lyrics||'').split('\n').find(l=>l.trim()) || '').slice(0,90);
+      const tagsHtml = (s.tags && s.tags.length)
+        ? `<div class="song-tags">${s.tags.map(t => `<span class="tag-chip">${escapeHtml(t)}</span>`).join('')}</div>`
+        : '';
       return `
         <div class="song-item" data-id="${s.id}">
           <div class="song-main">
             <p class="song-title">${escapeHtml(s.title || 'Untitled')}</p>
             ${s.artist ? `<p class="song-artist">${escapeHtml(s.artist)}</p>` : ''}
             <p class="song-snippet">${snippet}</p>
+            ${tagsHtml}
           </div>
           <button class="del-btn" data-del="${s.id}">DELETE</button>
         </div>
@@ -718,6 +799,7 @@ Was blind but now I see"></textarea>
     editingId = song.id;
     titleEl.value = song.title || '';
     artistEl.value = song.artist || '';
+    tagsEl.value = (song.tags || []).join(', ');
     lyricsEl.value = song.lyrics || '';
     mode = song.mode || 'blank';
     if(mode === 'count'){
@@ -741,6 +823,7 @@ Was blind but now I see"></textarea>
     editingId = null;
     titleEl.value = '';
     artistEl.value = '';
+    tagsEl.value = '';
     lyricsEl.value = '';
     slides = [];
     render();
@@ -773,13 +856,15 @@ Was blind but now I see"></textarea>
       showToast('Add lyrics first');
       return;
     }
+    const tags = tagsEl.value.split(',').map(t => t.trim()).filter(t => t.length > 0);
     const row = {
       title,
       artist: artistEl.value.trim(),
       lyrics,
       mode,
       line_count: parseInt(lineCountSlider.value, 10),
-      format
+      format,
+      tags
     };
     try{
       let error, data;
@@ -793,6 +878,7 @@ Was blind but now I see"></textarea>
       editingId = null;
       titleEl.value = '';
       artistEl.value = '';
+      tagsEl.value = '';
       lyricsEl.value = '';
       slides = [];
       render();
