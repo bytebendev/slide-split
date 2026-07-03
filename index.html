@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Slide Split — Lyrics to Slides</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #1B1D22;
+    --panel: #24262C;
+    --panel-2: #2C2E36;
+    --screen: #0A0A0C;
+    --amber: #E8A33D;
+    --amber-dim: #6b5427;
+    --text: #F2F2F0;
+    --muted: #8B8D96;
+    --border: #34363E;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: 60px;
+  }
+  header{
+    padding: 28px 20px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .eyebrow{
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin: 0 0 8px;
+  }
+  h1{
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 26px;
+    line-height: 1.15;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .sub{
+    color: var(--muted);
+    font-size: 13.5px;
+    margin: 8px 0 0;
+    line-height: 1.5;
+  }
+  main{ padding: 20px; max-width: 720px; margin: 0 auto; }
+  .panel{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 18px;
+  }
+  label{
+    display:block;
+    font-family:'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  textarea{
+    width: 100%;
+    min-height: 160px;
+    background: var(--screen);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    resize: vertical;
+  }
+  textarea:focus{ outline: 2px solid var(--amber-dim); }
+  .controls{
+    display:flex;
+    gap:10px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .mode-btn{
+    flex: 1;
+    min-width: 130px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .mode-btn.active{
+    background: rgba(232,163,61,0.12);
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+  .line-count-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-top: 12px;
+  }
+  .line-count-row input[type=range]{
+    flex:1;
+    accent-color: var(--amber);
+  }
+  .line-count-val{
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--amber);
+    font-size: 13px;
+    min-width: 60px;
+    text-align: right;
+  }
+  .go-btn{
+    width: 100%;
+    background: var(--amber);
+    color: #1B1D22;
+    border: none;
+    padding: 13px;
+    border-radius: 8px;
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 14px;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    margin-top: 16px;
+  }
+  .go-btn:active{ transform: scale(0.99); }
+  .results-head{
+    display:flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin: 4px 0 12px;
+  }
+  .results-head h2{
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 15px;
+    margin: 0;
+  }
+  .count{
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .filmstrip{
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .slide{
+    background: var(--screen);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    aspect-ratio: 16/9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 18px;
+    position: relative;
+    transition: border-color .15s;
+  }
+  .slide:active{ border-color: var(--amber); }
+  .slide-number{
+    position: absolute;
+    top: 10px;
+    left: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--amber-dim);
+    letter-spacing: 0.05em;
+  }
+  .slide-text{
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    color: #fff;
+    font-size: 17px;
+    line-height: 1.45;
+    white-space: pre-line;
+  }
+  .empty{
+    color: var(--muted);
+    font-size: 13.5px;
+    text-align: center;
+    padding: 30px 10px;
+    font-style: italic;
+  }
+  .export-row{
+    display:flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .export-btn{
+    flex:1;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 11px;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .export-btn:active{ border-color: var(--amber); color: var(--amber); }
+
+  .field-row{
+    display:flex;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .field{ flex: 1; }
+  .field input[type=text]{
+    width: 100%;
+    background: var(--screen);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+  }
+  .field input[type=text]:focus{ outline: 2px solid var(--amber-dim); }
+
+  .format-row{
+    display:flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .format-btn{
+    flex: 1;
+    min-width: 90px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+  }
+  .format-btn.active{
+    background: rgba(232,163,61,0.12);
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+
+  .save-row{
+    display:flex;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .save-btn{
+    flex: 1;
+    background: var(--panel-2);
+    border: 1px solid var(--amber-dim);
+    color: var(--amber);
+    padding: 12px;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 13.5px;
+    cursor: pointer;
+  }
+  .save-btn:active{ background: rgba(232,163,61,0.12); }
+
+  .search-wrap{ position: relative; margin-bottom: 14px; }
+  .search-wrap input[type=text]{
+    width: 100%;
+    background: var(--screen);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 11px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+  }
+  .search-wrap input[type=text]:focus{ outline: 2px solid var(--amber-dim); }
+
+  .song-list{
+    display:flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .song-item{
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer;
+    display:flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .song-item:active{ border-color: var(--amber); }
+  .song-main{ flex: 1; min-width: 0; }
+  .song-title{
+    font-weight: 700;
+    font-size: 14px;
+    margin: 0 0 3px;
+  }
+  .song-artist{
+    color: var(--muted);
+    font-size: 12px;
+    margin: 0 0 5px;
+  }
+  .song-snippet{
+    color: var(--muted);
+    font-size: 12px;
+    margin: 0;
+    line-height: 1.4;
+  }
+  .song-snippet mark{
+    background: rgba(232,163,61,0.25);
+    color: var(--amber);
+    border-radius: 2px;
+  }
+  .del-btn{
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 4px 6px;
+    flex-shrink: 0;
+  }
+  .del-btn:active{ color: #d96b6b; }
+
+  .toast{
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--amber);
+    color: #1B1D22;
+    padding: 10px 18px;
+    border-radius: 20px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s, transform .2s;
+    z-index: 10;
+  }
+  .toast.show{
+    opacity: 1;
+    transform: translateX(-50%) translateY(-6px);
+  }
+
+  footer{
+    text-align:center;
+    color: var(--muted);
+    font-size: 11.5px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 20px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">Slide Split</p>
+  <h1>Lyrics → Slides</h1>
+  <p class="sub">Paste lyrics. It splits into projection-ready slides, previewed like the actual screen.</p>
+</header>
+
+<main>
+  <div class="panel">
+    <div class="field-row">
+      <div class="field">
+        <label for="title">Title</label>
+        <input type="text" id="title" placeholder="Amazing Grace">
+      </div>
+      <div class="field">
+        <label for="artist">Artist (optional)</label>
+        <input type="text" id="artist" placeholder="John Newton">
+      </div>
+    </div>
+
+    <label for="lyrics">Paste lyrics</label>
+    <textarea id="lyrics" placeholder="Verse 1
+Amazing grace how sweet the sound
+That saved a wretch like me
+
+Chorus
+I once was lost but now am found
+Was blind but now I see"></textarea>
+
+    <div class="controls">
+      <button class="mode-btn active" id="modeBlank">By blank lines</button>
+      <button class="mode-btn" id="modeCount">By line count</button>
+    </div>
+
+    <div class="line-count-row" id="lineCountRow" style="display:none;">
+      <input type="range" id="lineCount" min="1" max="6" value="2">
+      <span class="line-count-val" id="lineCountVal">2 lines / slide</span>
+    </div>
+
+    <label style="margin-top:14px;">Text case</label>
+    <div class="format-row">
+      <button class="format-btn active" data-format="none">As typed</button>
+      <button class="format-btn" data-format="upper">UPPER CASE</button>
+      <button class="format-btn" data-format="title">Title Case</button>
+      <button class="format-btn" data-format="sentence">Sentence case</button>
+    </div>
+
+    <button class="go-btn" id="splitBtn">Split into slides</button>
+    <div class="save-row">
+      <button class="save-btn" id="saveBtn">Save song</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="results-head">
+      <h2>Preview</h2>
+      <span class="count" id="slideCount">0 slides</span>
+    </div>
+    <div class="filmstrip" id="filmstrip">
+      <div class="empty">Your slides will show up here.</div>
+    </div>
+
+    <div class="export-row">
+      <button class="export-btn" id="copyBtn">Copy all (—)</button>
+      <button class="export-btn" id="downloadBtn">Download .txt</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="results-head">
+      <h2>Your Songs</h2>
+      <span class="count" id="songCount">0 saved</span>
+    </div>
+    <div class="search-wrap">
+      <input type="text" id="search" placeholder="Search by title or a phrase from the lyrics…">
+    </div>
+    <div class="song-list" id="songList">
+      <div class="empty">No saved songs yet. Split some lyrics above, then hit Save song.</div>
+    </div>
+  </div>
+</main>
+
+<footer>MADE FOR TESTING · SAVED TO YOUR ACCOUNT ONLY</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+  let mode = 'blank';
+  let slides = [];
+  let format = 'none';
+  let allSongs = [];
+  let editingId = null;
+
+  const titleEl = document.getElementById('title');
+  const artistEl = document.getElementById('artist');
+  const lyricsEl = document.getElementById('lyrics');
+  const modeBlankBtn = document.getElementById('modeBlank');
+  const modeCountBtn = document.getElementById('modeCount');
+  const lineCountRow = document.getElementById('lineCountRow');
+  const lineCountSlider = document.getElementById('lineCount');
+  const lineCountVal = document.getElementById('lineCountVal');
+  const formatBtns = document.querySelectorAll('.format-btn');
+  const splitBtn = document.getElementById('splitBtn');
+  const saveBtn = document.getElementById('saveBtn');
+  const filmstrip = document.getElementById('filmstrip');
+  const slideCountEl = document.getElementById('slideCount');
+  const copyBtn = document.getElementById('copyBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const searchEl = document.getElementById('search');
+  const songListEl = document.getElementById('songList');
+  const songCountEl = document.getElementById('songCount');
+  const toastEl = document.getElementById('toast');
+
+  modeBlankBtn.addEventListener('click', () => {
+    mode = 'blank';
+    modeBlankBtn.classList.add('active');
+    modeCountBtn.classList.remove('active');
+    lineCountRow.style.display = 'none';
+  });
+
+  modeCountBtn.addEventListener('click', () => {
+    mode = 'count';
+    modeCountBtn.classList.add('active');
+    modeBlankBtn.classList.remove('active');
+    lineCountRow.style.display = 'flex';
+  });
+
+  lineCountSlider.addEventListener('input', () => {
+    lineCountVal.textContent = lineCountSlider.value + ' lines / slide';
+  });
+
+  formatBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      formatBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      format = btn.dataset.format;
+      if(slides.length) render();
+    });
+  });
+
+  function applyFormat(str){
+    if(format === 'upper') return str.toUpperCase();
+    if(format === 'title'){
+      return str.replace(/\w\S*/g, t => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
+    }
+    if(format === 'sentence'){
+      return str.split('\n').map(line => {
+        const trimmed = line.trim();
+        if(!trimmed) return '';
+        return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+      }).join('\n');
+    }
+    return str;
+  }
+
+  function splitByBlankLines(text){
+    return text
+      .split(/\n\s*\n/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+  }
+
+  function splitByLineCount(text, n){
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const out = [];
+    for(let i = 0; i < lines.length; i += n){
+      out.push(lines.slice(i, i + n).join('\n'));
+    }
+    return out;
+  }
+
+  function render(){
+    slideCountEl.textContent = slides.length + (slides.length === 1 ? ' slide' : ' slides');
+    copyBtn.textContent = 'Copy all (' + slides.length + ')';
+
+    if(slides.length === 0){
+      filmstrip.innerHTML = '<div class="empty">Your slides will show up here.</div>';
+      return;
+    }
+
+    filmstrip.innerHTML = slides.map((s, i) => `
+      <div class="slide">
+        <span class="slide-number">${String(i+1).padStart(2,'0')} / ${String(slides.length).padStart(2,'0')}</span>
+        <div class="slide-text">${escapeHtml(applyFormat(s))}</div>
+      </div>
+    `).join('');
+  }
+
+  function escapeHtml(str){
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    setTimeout(() => toastEl.classList.remove('show'), 1600);
+  }
+
+  splitBtn.addEventListener('click', () => {
+    const text = lyricsEl.value.trim();
+    if(!text){
+      slides = [];
+      render();
+      return;
+    }
+    slides = mode === 'blank'
+      ? splitByBlankLines(text)
+      : splitByLineCount(text, parseInt(lineCountSlider.value, 10));
+    render();
+  });
+
+  copyBtn.addEventListener('click', async () => {
+    if(slides.length === 0) return;
+    const joined = slides.map(applyFormat).join('\n\n---\n\n');
+    try{
+      await navigator.clipboard.writeText(joined);
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => { copyBtn.textContent = 'Copy all (' + slides.length + ')'; }, 1400);
+    }catch(e){
+      alert('Could not copy — select and copy manually.');
+    }
+  });
+
+  downloadBtn.addEventListener('click', () => {
+    if(slides.length === 0) return;
+    const joined = slides.map(applyFormat).join('\n\n---\n\n');
+    const blob = new Blob([joined], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = ((titleEl.value.trim() || 'slides').replace(/\s+/g,'-').toLowerCase()) + '.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // ---- Song library (persisted via window.storage) ----
+
+  function songId(){
+    return 'song_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+  }
+
+  async function loadAllSongs(){
+    try{
+      const listRes = await window.storage.list('song:', false);
+      const keys = (listRes && listRes.keys) || [];
+      const songs = [];
+      for(const key of keys){
+        try{
+          const res = await window.storage.get(key, false);
+          if(res && res.value){
+            songs.push(JSON.parse(res.value));
+          }
+        }catch(e){ /* skip unreadable entry */ }
+      }
+      songs.sort((a,b) => (b.updatedAt||0) - (a.updatedAt||0));
+      allSongs = songs;
+    }catch(e){
+      allSongs = [];
+    }
+    renderSongList();
+  }
+
+  function snippetAround(text, query){
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if(idx === -1) return text.slice(0, 90) + (text.length > 90 ? '…' : '');
+    const start = Math.max(0, idx - 30);
+    const end = Math.min(text.length, idx + query.length + 40);
+    let snippet = text.slice(start, end);
+    if(start > 0) snippet = '…' + snippet;
+    if(end < text.length) snippet += '…';
+    const re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'ig');
+    return escapeHtml(snippet).replace(re, '<mark>$1</mark>');
+  }
+
+  function renderSongList(){
+    const query = searchEl.value.trim();
+    let results = allSongs;
+
+    if(query){
+      const q = query.toLowerCase();
+      results = allSongs.filter(s =>
+        (s.title || '').toLowerCase().includes(q) ||
+        (s.artist || '').toLowerCase().includes(q) ||
+        (s.lyrics || '').toLowerCase().includes(q)
+      );
+    }
+
+    songCountEl.textContent = allSongs.length + (allSongs.length === 1 ? ' saved' : ' saved');
+
+    if(results.length === 0){
+      songListEl.innerHTML = `<div class="empty">${allSongs.length === 0 ? 'No saved songs yet. Split some lyrics above, then hit Save song.' : 'No songs match your search.'}</div>`;
+      return;
+    }
+
+    songListEl.innerHTML = results.map(s => {
+      const titleMatch = query && (s.title||'').toLowerCase().includes(query.toLowerCase());
+      const snippet = query && !titleMatch
+        ? snippetAround(s.lyrics || '', query)
+        : escapeHtml((s.lyrics||'').split('\n').find(l=>l.trim()) || '').slice(0,90);
+      return `
+        <div class="song-item" data-id="${s.id}">
+          <div class="song-main">
+            <p class="song-title">${escapeHtml(s.title || 'Untitled')}</p>
+            ${s.artist ? `<p class="song-artist">${escapeHtml(s.artist)}</p>` : ''}
+            <p class="song-snippet">${snippet}</p>
+          </div>
+          <button class="del-btn" data-del="${s.id}">DELETE</button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  searchEl.addEventListener('input', renderSongList);
+
+  songListEl.addEventListener('click', (e) => {
+    const delId = e.target.dataset.del;
+    if(delId){
+      e.stopPropagation();
+      deleteSong(delId);
+      return;
+    }
+    const item = e.target.closest('.song-item');
+    if(item){
+      loadSong(item.dataset.id);
+    }
+  });
+
+  function loadSong(id){
+    const song = allSongs.find(s => s.id === id);
+    if(!song) return;
+    editingId = song.id;
+    titleEl.value = song.title || '';
+    artistEl.value = song.artist || '';
+    lyricsEl.value = song.lyrics || '';
+    mode = song.mode || 'blank';
+    if(mode === 'count'){
+      modeCountBtn.click();
+      lineCountSlider.value = song.lineCount || 2;
+      lineCountVal.textContent = lineCountSlider.value + ' lines / slide';
+    } else {
+      modeBlankBtn.click();
+    }
+    format = song.format || 'none';
+    formatBtns.forEach(b => b.classList.toggle('active', b.dataset.format === format));
+    slides = mode === 'blank'
+          ? splitByBlankLines(text)
+      : splitByLineCount(text, parseInt(lineCountSlider.value, 10));
+    render();
+  });
+
+  copyBtn.addEventListener('click', async () => {
+    if(slides.length === 0) return;
+    const joined = slides.map(applyFormat).join('\n\n---\n\n');
+    try{
+      await navigator.clipboard.writeText(joined);
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => { copyBtn.textContent = 'Copy all (' + slides.length + ')'; }, 1400);
+    }catch(e){
+      alert('Could not copy — select and copy manually.');
+    }
+  });
+
+  downloadBtn.addEventListener('click', () => {
+    if(slides.length === 0) return;
+    const joined = slides.map(applyFormat).join('\n\n---\n\n');
+    const blob = new Blob([joined], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = ((titleEl.value.trim() || 'slides').replace(/\s+/g,'-').toLowerCase()) + '.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // ---- Song library (persisted via window.storage) ----
+
+  function songId(){
+    return 'song_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+  }
+
+  async function loadAllSongs(){
+    try{
+      const listRes = await window.storage.list('song:', false);
+      const keys = (listRes && listRes.keys) || [];
+      const songs = [];
+      for(const key of keys){
+        try{
+          const res = await window.storage.get(key, false);
+          if(res && res.value){
+            songs.push(JSON.parse(res.value));
+          }
+        }catch(e){ /* skip unreadable entry */ }
+      }
+      songs.sort((a,b) => (b.updatedAt||0) - (a.updatedAt||0));
+      allSongs = songs;
+    }catch(e){
+      allSongs = [];
+    }
+    renderSongList();
+  }
+
+  function snippetAround(text, query){
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if(idx === -1) return text.slice(0, 90) + (text.length > 90 ? '…' : '');
+    const start = Math.max(0, idx - 30);
+    const end = Math.min(text.length, idx + query.length + 40);
+    let snippet = text.slice(start, end);
+    if(start > 0) snippet = '…' + snippet;
+    if(end < text.length) snippet += '…';
+    const re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'ig');
+    return escapeHtml(snippet).replace(re, '<mark>$1</mark>');
+  }
+
+  function renderSongList(){
+    const query = searchEl.value.trim();
+    let results = allSongs;
+
+    if(query){
+      const q = query.toLowerCase();
+      results = allSongs.filter(s =>
+        (s.title || '').toLowerCase().includes(q) ||
+        (s.artist || '').toLowerCase().includes(q) ||
+        (s.lyrics || '').toLowerCase().includes(q)
+      );
+    }
+
+    songCountEl.textContent = allSongs.length + (allSongs.length === 1 ? ' saved' : ' saved');
+
+    if(results.length === 0){
+      songListEl.innerHTML = `<div class="empty">${allSongs.length === 0 ? 'No saved songs yet. Split some lyrics above, then hit Save song.' : 'No songs match your search.'}</div>`;
+      return;
+    }
+
+    songListEl.innerHTML = results.map(s => {
+      const titleMatch = query && (s.title||'').toLowerCase().includes(query.toLowerCase());
+      const snippet = query && !titleMatch
+        ? snippetAround(s.lyrics || '', query)
+        : escapeHtml((s.lyrics||'').split('\n').find(l=>l.trim()) || '').slice(0,90);
+      return `
+        <div class="song-item" data-id="${s.id}">
+          <div class="song-main">
+            <p class="song-title">${escapeHtml(s.title || 'Untitled')}</p>
+            ${s.artist ? `<p class="song-artist">${escapeHtml(s.artist)}</p>` : ''}
+            <p class="song-snippet">${snippet}</p>
+          </div>
+          <button class="del-btn" data-del="${s.id}">DELETE</button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  searchEl.addEventListener('input', renderSongList);
+
+  songListEl.addEventListener('click', (e) => {
+    const delId = e.target.dataset.del;
+    if(delId){
+      e.stopPropagation();
+      deleteSong(delId);
+      return;
+    }
+    const item = e.target.closest('.song-item');
+    if(item){
+      loadSong(item.dataset.id);
+    }
+  });
+
+  function loadSong(id){
+    const song = allSongs.find(s => s.id === id);
+    if(!song) return;
+    editingId = song.id;
+    titleEl.value = song.title || '';
+    artistEl.value = song.artist || '';
+    lyricsEl.value = song.lyrics || '';
+    mode = song.mode || 'blank';
+    if(mode === 'count'){
+      modeCountBtn.click();
+      lineCountSlider.value = song.lineCount || 2;
+      lineCountVal.textContent = lineCountSlider.value + ' lines / slide';
+    } else {
+      modeBlankBtn.click();
+    }
+    format = song.format || 'none';
+    formatBtns.forEach(b => b.classList.toggle('active', b.dataset.format === format));
+    slides = mode === 'blank' ? splitByBlankLines(song.lyrics) : splitByLineCount(song.lyrics, parseInt(lineCountSlider.value,10));
+    render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showToast('Loaded "' + (song.title || 'Untitled') + '"');
+  }
+
+  async function deleteSong(id){
+    try{
+      await window.storage.delete('song:' + id, false);
+      showToast('Deleted');
+      if(editingId === id) editingId = null;
+      await loadAllSongs();
+    }catch(e){
+      showToast('Could not delete');
+    }
+  }
+
+  saveBtn.addEventListener('click', async () => {
+    const title = titleEl.value.trim();
+    const lyrics = lyricsEl.value.trim();
+    if(!title){
+      showToast('Add a title first');
+      titleEl.focus();
+      return;
+    }
+    if(!lyrics){
+      showToast('Add lyrics first');
+      return;
+    }
+    const id = editingId || songId();
+    const song = {
+      id,
+      title,
+      artist: artistEl.value.trim(),
+      lyrics,
+      mode,
+      lineCount: parseInt(lineCountSlider.value, 10),
+      format,
+      updatedAt: Date.now()
+    };
+    try{
+      const res = await window.storage.set('song:' + id, JSON.stringify(song), false);
+      if(!res){
+        showToast('Save failed — try again');
+        return;
+      }
+      editingId = id;
+      showToast('Saved "' + title + '"');
+      await loadAllSongs();
+    }catch(e){
+      showToast('Save failed — try again');
+    }
+  });
+
+  loadAllSongs();
+</script>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
