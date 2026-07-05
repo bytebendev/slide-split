@@ -29,10 +29,12 @@
     padding-bottom: 60px;
   }
   header{
-    padding: 28px 20px 18px;
-    border-bottom: 1px solid var(--border);
+    padding: 22px 20px 16px;
   }
   .eyebrow{
+    display:flex;
+    align-items:center;
+    gap: 7px;
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
     letter-spacing: 0.14em;
@@ -40,9 +42,21 @@
     color: var(--amber);
     margin: 0 0 8px;
   }
+  .eyebrow .dot{
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 8px 1px rgba(232,163,61,0.65);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
   h1{
     font-family: 'Archivo Black', sans-serif;
-    font-size: 26px;
+    font-size: 27px;
     line-height: 1.15;
     margin: 0;
     letter-spacing: -0.01em;
@@ -53,13 +67,43 @@
     margin: 8px 0 0;
     line-height: 1.5;
   }
+  .tabbar{
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    gap: 4px;
+    background: rgba(27,29,34,0.94);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 16px;
+  }
+  .tab-btn{
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 9px 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: color .15s, background .15s;
+  }
+  .tab-btn.active{
+    color: var(--amber);
+    background: rgba(232,163,61,0.1);
+  }
   main{ padding: 20px; max-width: 720px; margin: 0 auto; }
   .panel{
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 16px;
     margin-bottom: 18px;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 12px 32px -16px rgba(0,0,0,0.55);
   }
   label{
     display:block;
@@ -127,16 +171,17 @@
   }
   .go-btn{
     width: 100%;
-    background: var(--amber);
+    background: linear-gradient(135deg, #F2B65D, #E8A33D);
     color: #1B1D22;
     border: none;
     padding: 13px;
-    border-radius: 8px;
+    border-radius: 9px;
     font-family: 'Archivo Black', sans-serif;
     font-size: 14px;
     letter-spacing: 0.01em;
     cursor: pointer;
     margin-top: 16px;
+    box-shadow: 0 8px 20px -8px rgba(232,163,61,0.55);
   }
   .go-btn:active{ transform: scale(0.99); }
   .results-head{
@@ -487,12 +532,19 @@
 <body>
 
 <header>
-  <p class="eyebrow">Slide Split</p>
+  <p class="eyebrow"><span class="dot"></span>Slide Split</p>
   <h1>Lyrics → Slides</h1>
   <p class="sub">Paste lyrics. It splits into projection-ready slides, previewed like the actual screen.</p>
 </header>
 
+<nav class="tabbar">
+  <button class="tab-btn active" data-tab="editor">Editor</button>
+  <button class="tab-btn" data-tab="library">Library</button>
+  <button class="tab-btn" data-tab="setlists">Setlists</button>
+</nav>
+
 <main>
+  <div class="tab-content" data-tab-content="editor">
   <div class="panel">
     <div class="field-row">
       <div class="field">
@@ -563,7 +615,9 @@ Was blind but now I see"></textarea>
       <button class="export-btn" id="downloadBtn">Download .txt</button>
     </div>
   </div>
+  </div>
 
+  <div class="tab-content" data-tab-content="library" style="display:none;">
   <div class="panel">
     <div class="results-head">
       <h2>Your Songs</h2>
@@ -577,7 +631,9 @@ Was blind but now I see"></textarea>
       <div class="empty">No saved songs yet. Split some lyrics above, then hit Save song.</div>
     </div>
   </div>
+  </div>
 
+  <div class="tab-content" data-tab-content="setlists" style="display:none;">
   <div class="panel">
     <div class="results-head">
       <h2>Setlists</h2>
@@ -618,6 +674,7 @@ Was blind but now I see"></textarea>
       <div class="empty">No setlists yet.</div>
     </div>
   </div>
+  </div>
 </main>
 
 <footer>MADE FOR TESTING · SAVED TO YOUR ACCOUNT ONLY</footer>
@@ -628,6 +685,20 @@ Was blind but now I see"></textarea>
   const SUPABASE_URL = 'https://rfdpgydjhrwwzinvwsaf.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmZHBneWRqaHJ3d3ppbnZ3c2FmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwNjQ2OTEsImV4cCI6MjA5ODY0MDY5MX0.7O0K_SlicbdgO0epyOWmQIwtCIQvXs4c1iaJtpkG24I';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ---- Tab navigation ----
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabContents = document.querySelectorAll('.tab-content');
+
+  function goToTab(name){
+    tabBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    tabContents.forEach(c => { c.style.display = c.dataset.tabContent === name ? '' : 'none'; });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => goToTab(btn.dataset.tab));
+  });
 
   let mode = 'blank';
   let slides = [];
@@ -992,6 +1063,7 @@ Was blind but now I see"></textarea>
   function loadSong(id){
     const song = allSongs.find(s => s.id === id);
     if(!song) return;
+    goToTab('editor');
     editingId = song.id;
     titleEl.value = song.title || '';
     artistEl.value = song.artist || '';
