@@ -707,11 +707,13 @@ Was blind but now I see"></textarea>
       <button class="bg-swatch bg-motion-2" data-bg-type="motion" data-bg-value="motion-2" aria-label="Blue-violet drift"></button>
       <button class="bg-swatch bg-motion-3" data-bg-type="motion" data-bg-value="motion-3" aria-label="Slow pulse"></button>
     </div>
-    <div class="field-row" style="margin-top:8px;">
+    <div class="field-row" style="margin-top:8px; align-items: flex-end;">
       <div class="field">
-        <input type="text" id="bgImageUrl" placeholder="Or paste an image URL…">
+        <input type="text" id="bgImageUrl" placeholder="Or paste a direct image URL (ends in .jpg/.png)…">
       </div>
+      <button class="save-btn" id="applyBgImageBtn" style="flex: 0 0 auto; padding: 10px 16px;">Apply</button>
     </div>
+    <p id="bgImageStatus" style="display:none; font-family:'JetBrains Mono',monospace; font-size:11px; color: var(--muted); margin: 0 0 8px;"></p>
 
     <button class="go-btn" id="splitBtn">Split into slides</button>
     <div class="save-row">
@@ -922,17 +924,39 @@ Was blind but now I see"></textarea>
       btn.classList.add('active');
       background = { type: btn.dataset.bgType, value: btn.dataset.bgValue };
       bgImageUrlEl.value = '';
+      bgImageStatus.style.display = 'none';
       if(slides.length) render();
     });
   });
 
-  bgImageUrlEl.addEventListener('input', () => {
+  const applyBgImageBtn = document.getElementById('applyBgImageBtn');
+  const bgImageStatus = document.getElementById('bgImageStatus');
+
+  function tryApplyBgImage(){
     const url = bgImageUrlEl.value.trim();
-    if(url){
+    if(!url){
+      showToast('Paste an image URL first');
+      return;
+    }
+    bgImageStatus.style.display = 'block';
+    bgImageStatus.textContent = 'Checking image…';
+    const img = new Image();
+    img.onload = () => {
       bgSwatches.forEach(b => b.classList.remove('active'));
       background = { type: 'image', value: url };
+      bgImageStatus.textContent = 'Applied ✓';
       if(slides.length) render();
-    }
+      showToast('Background image applied');
+    };
+    img.onerror = () => {
+      bgImageStatus.textContent = "Couldn't load that image — many sites (Google Images, Instagram, Pinterest) block direct linking. Try a URL that ends in .jpg/.png, or a hosting site like Imgur.";
+    };
+    img.src = url;
+  }
+
+  applyBgImageBtn.addEventListener('click', tryApplyBgImage);
+  bgImageUrlEl.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter') tryApplyBgImage();
   });
 
   function applyFormat(str, fmtOverride){
