@@ -235,6 +235,7 @@
     font-size: 17px;
     line-height: 1.45;
     white-space: pre-line;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.55);
   }
   .empty{
     color: var(--muted);
@@ -496,6 +497,48 @@
   }
   .setlist-actions-col button:active{ border-color: var(--amber); color: var(--amber); }
 
+  .bg-row{
+    display:flex;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .bg-swatch{
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .bg-swatch.active{
+    border-color: var(--amber);
+    box-shadow: 0 0 0 2px rgba(232,163,61,0.25);
+  }
+  .bg-motion-1{
+    background: linear-gradient(120deg, #1B1D22, #4A3418, #1B1D22);
+    background-size: 300% 300%;
+    animation: motionShift1 7s ease infinite;
+  }
+  .bg-motion-2{
+    background: linear-gradient(120deg, #12141A, #2A1E4A, #12141A);
+    background-size: 300% 300%;
+    animation: motionShift1 9s ease infinite;
+  }
+  .bg-motion-3{
+    background: radial-gradient(circle, #2A2320, #0A0A0C 70%);
+    animation: motionPulse 4s ease-in-out infinite;
+  }
+  @keyframes motionShift1{
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  @keyframes motionPulse{
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.25); }
+  }
+
   .toast{
     position: fixed;
     bottom: 20px;
@@ -591,6 +634,26 @@ Was blind but now I see"></textarea>
       <button class="format-btn" data-format="upper">UPPER CASE</button>
       <button class="format-btn" data-format="title">Title Case</button>
       <button class="format-btn" data-format="sentence">Sentence case</button>
+    </div>
+
+    <label style="margin-top:14px;">Background</label>
+    <div class="bg-row" id="bgColorRow">
+      <button class="bg-swatch active" data-bg-type="color" data-bg-value="#0A0A0C" style="background:#0A0A0C;" aria-label="Stage black"></button>
+      <button class="bg-swatch" data-bg-type="color" data-bg-value="#0E1A2E" style="background:#0E1A2E;" aria-label="Deep blue"></button>
+      <button class="bg-swatch" data-bg-type="color" data-bg-value="#1F1430" style="background:#1F1430;" aria-label="Deep violet"></button>
+      <button class="bg-swatch" data-bg-type="color" data-bg-value="#141F17" style="background:#141F17;" aria-label="Forest"></button>
+      <button class="bg-swatch" data-bg-type="color" data-bg-value="#2A1414" style="background:#2A1414;" aria-label="Wine"></button>
+      <button class="bg-swatch" data-bg-type="color" data-bg-value="#1B1D22" style="background:#1B1D22;" aria-label="Charcoal"></button>
+    </div>
+    <div class="bg-row">
+      <button class="bg-swatch bg-motion-1" data-bg-type="motion" data-bg-value="motion-1" aria-label="Amber drift"></button>
+      <button class="bg-swatch bg-motion-2" data-bg-type="motion" data-bg-value="motion-2" aria-label="Blue-violet drift"></button>
+      <button class="bg-swatch bg-motion-3" data-bg-type="motion" data-bg-value="motion-3" aria-label="Slow pulse"></button>
+    </div>
+    <div class="field-row" style="margin-top:8px;">
+      <div class="field">
+        <input type="text" id="bgImageUrl" placeholder="Or paste an image URL…">
+      </div>
     </div>
 
     <button class="go-btn" id="splitBtn">Split into slides</button>
@@ -703,6 +766,7 @@ Was blind but now I see"></textarea>
   let mode = 'blank';
   let slides = [];
   let format = 'none';
+  let background = { type: 'color', value: '#0A0A0C' };
   let allSongs = [];
   let activeTagFilter = null;
   let editingId = null;
@@ -719,6 +783,8 @@ Was blind but now I see"></textarea>
   const lineCountSlider = document.getElementById('lineCount');
   const lineCountVal = document.getElementById('lineCountVal');
   const formatBtns = document.querySelectorAll('.format-btn');
+  const bgSwatches = document.querySelectorAll('.bg-swatch');
+  const bgImageUrlEl = document.getElementById('bgImageUrl');
   const splitBtn = document.getElementById('splitBtn');
   const saveBtn = document.getElementById('saveBtn');
   const newBtn = document.getElementById('newBtn');
@@ -773,6 +839,25 @@ Was blind but now I see"></textarea>
       format = btn.dataset.format;
       if(slides.length) render();
     });
+  });
+
+  bgSwatches.forEach(btn => {
+    btn.addEventListener('click', () => {
+      bgSwatches.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      background = { type: btn.dataset.bgType, value: btn.dataset.bgValue };
+      bgImageUrlEl.value = '';
+      if(slides.length) render();
+    });
+  });
+
+  bgImageUrlEl.addEventListener('input', () => {
+    const url = bgImageUrlEl.value.trim();
+    if(url){
+      bgSwatches.forEach(b => b.classList.remove('active'));
+      background = { type: 'image', value: url };
+      if(slides.length) render();
+    }
   });
 
   function applyFormat(str, fmtOverride){
@@ -857,6 +942,16 @@ Was blind but now I see"></textarea>
     return slides;
   }
 
+  function slideBgAttrs(){
+    if(background.type === 'motion'){
+      return { class: ' bg-' + background.value, style: '' };
+    }
+    if(background.type === 'image'){
+      return { class: '', style: `style="background-image: linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.45)), url('${background.value.replace(/'/g,"%27")}'); background-size:cover; background-position:center;"` };
+    }
+    return { class: '', style: `style="background:${background.value};"` };
+  }
+
   function render(){
     slideCountEl.textContent = slides.length + (slides.length === 1 ? ' slide' : ' slides');
     copyBtn.textContent = 'Copy all (' + slides.length + ')';
@@ -866,8 +961,9 @@ Was blind but now I see"></textarea>
       return;
     }
 
+    const bg = slideBgAttrs();
     filmstrip.innerHTML = slides.map((s, i) => `
-      <div class="slide">
+      <div class="slide${bg.class}" ${bg.style}>
         <span class="slide-number">${s.label ? escapeHtml(s.label.toUpperCase()) + ' · ' : ''}${String(i+1).padStart(2,'0')} / ${String(slides.length).padStart(2,'0')}</span>
         <div class="slide-text">${escapeHtml(applyFormat(s.text))}</div>
       </div>
@@ -953,6 +1049,7 @@ Was blind but now I see"></textarea>
         lineCount: row.line_count || 2,
         format: row.format || 'none',
         tags: normalizeTags(row.tags),
+        background: row.background || { type: 'color', value: '#0A0A0C' },
         updatedAt: row.created_at
       }));
     }catch(e){
@@ -1083,6 +1180,10 @@ Was blind but now I see"></textarea>
     }
     format = song.format || 'none';
     formatBtns.forEach(b => b.classList.toggle('active', b.dataset.format === format));
+    background = song.background || { type: 'color', value: '#0A0A0C' };
+    bgSwatches.forEach(b => b.classList.toggle('active',
+      background.type === b.dataset.bgType && background.value === b.dataset.bgValue));
+    bgImageUrlEl.value = background.type === 'image' ? background.value : '';
     const n = parseInt(lineCountSlider.value, 10);
     slides = mode === 'blank' ? splitByBlankLines(song.lyrics)
       : mode === 'count' ? splitByLineCount(song.lyrics, n)
@@ -1101,6 +1202,9 @@ Was blind but now I see"></textarea>
     tagsEl.value = '';
     lyricsEl.value = '';
     slides = [];
+    background = { type: 'color', value: '#0A0A0C' };
+    bgSwatches.forEach(b => b.classList.toggle('active', b.dataset.bgValue === '#0A0A0C'));
+    bgImageUrlEl.value = '';
     render();
     editStatus.style.display = 'none';
     showToast('Ready for a new song');
@@ -1139,7 +1243,8 @@ Was blind but now I see"></textarea>
       mode,
       line_count: parseInt(lineCountSlider.value, 10),
       format,
-      tags
+      tags,
+      background
     };
     try{
       let error, data;
@@ -1156,6 +1261,9 @@ Was blind but now I see"></textarea>
       tagsEl.value = '';
       lyricsEl.value = '';
       slides = [];
+      background = { type: 'color', value: '#0A0A0C' };
+      bgSwatches.forEach(b => b.classList.toggle('active', b.dataset.bgValue === '#0A0A0C'));
+      bgImageUrlEl.value = '';
       render();
       editStatus.style.display = 'none';
       await loadAllSongs();
