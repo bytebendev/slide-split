@@ -185,9 +185,9 @@
   }
   .slide-text{
     font-family: 'Inter', sans-serif;
-    font-weight: 700;
+    font-weight: 800;
     color: #fff;
-    font-size: 17px;
+    font-size: 24px;
     line-height: 1.45;
     white-space: pre-line;
   }
@@ -216,29 +216,6 @@
     cursor: pointer;
   }
   .export-btn:active{ border-color: var(--amber); color: var(--amber); }
-
-  .present-btn{
-    width: 100%;
-    background: var(--amber);
-    color: #1B1D22;
-    border: none;
-    padding: 14px;
-    border-radius: 8px;
-    font-family: 'Archivo Black', sans-serif;
-    font-size: 14px;
-    letter-spacing: 0.01em;
-    cursor: pointer;
-    margin-top: 4px;
-  }
-  .present-btn:active{ transform: scale(0.99); }
-  .present-hint{
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10.5px;
-    color: var(--muted);
-    text-align: center;
-    margin: 8px 0 0;
-    line-height: 1.5;
-  }
 
   .field-row{
     display:flex;
@@ -403,6 +380,77 @@
   }
   .del-btn:active{ color: #d96b6b; }
 
+  .setlist-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .setlist-item .idx{
+    font-family:'JetBrains Mono',monospace;
+    color: var(--amber-dim);
+    font-size: 12px;
+    width: 20px;
+    flex-shrink: 0;
+  }
+  .setlist-item .info{ flex:1; min-width:0; }
+  .setlist-item .info .t{ font-weight:700; font-size:13.5px; }
+  .setlist-item .info .a{ color:var(--muted); font-size:11.5px; }
+  .setlist-item .actions{ display:flex; gap:4px; flex-shrink:0; }
+  .setlist-item .actions button{
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius:6px;
+    width:30px;
+    height:30px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:13px;
+    cursor:pointer;
+  }
+  .setlist-item .actions button:active{ border-color: var(--amber); color: var(--amber); }
+
+  .add-result{
+    display:flex;
+    justify-content: space-between;
+    align-items:center;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    margin-bottom: 6px;
+    gap: 10px;
+  }
+  .add-result .t{ font-size: 13px; font-weight:600; flex:1; min-width:0; }
+  .add-result button{
+    background: rgba(232,163,61,0.12);
+    border: 1px solid var(--amber);
+    color: var(--amber);
+    border-radius:6px;
+    padding: 5px 10px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+
+  .setlist-actions-col{ display:flex; flex-direction:column; gap:6px; }
+  .setlist-actions-col button{
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius:6px;
+    padding: 3px 8px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    cursor:pointer;
+  }
+  .setlist-actions-col button:active{ border-color: var(--amber); color: var(--amber); }
+
   .toast{
     position: fixed;
     bottom: 20px;
@@ -433,82 +481,6 @@
     font-size: 11.5px;
     font-family: 'JetBrains Mono', monospace;
     padding: 20px;
-  }
-
-  /* ---- Present Fullscreen overlay ---- */
-  .present-overlay{
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: var(--screen);
-    z-index: 999;
-    flex-direction: column;
-  }
-  .present-overlay.show{ display: flex; }
-  .present-top{
-    display:flex;
-    justify-content: space-between;
-    align-items:center;
-    padding: 16px 18px 6px;
-  }
-  .present-label{
-    font-family:'JetBrains Mono', monospace;
-    font-size: 11px;
-    letter-spacing:.08em;
-    color: var(--amber-dim);
-    text-transform: uppercase;
-    min-height: 14px;
-  }
-  .present-exit{
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--muted);
-    font-family:'JetBrains Mono', monospace;
-    font-size: 11px;
-    padding: 7px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-  .present-stage{
-    flex: 1;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding: 10px 28px;
-    text-align:center;
-    user-select: none;
-    touch-action: none;
-  }
-  .present-text{
-    font-family: 'Inter', sans-serif;
-    font-weight: 700;
-    color: #fff;
-    font-size: clamp(22px, 6vw, 46px);
-    line-height: 1.4;
-    white-space: pre-line;
-  }
-  .present-nav{
-    display:flex;
-    align-items:center;
-    justify-content: space-between;
-    padding: 10px 20px 26px;
-  }
-  .present-nav-btn{
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-    color: var(--amber);
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    font-size: 22px;
-    line-height: 1;
-    cursor: pointer;
-  }
-  .present-nav-btn:active{ border-color: var(--amber); }
-  .present-counter{
-    font-family:'JetBrains Mono', monospace;
-    color: var(--muted);
-    font-size: 12px;
   }
 </style>
 </head>
@@ -586,9 +558,6 @@ Was blind but now I see"></textarea>
       <div class="empty">Your slides will show up here.</div>
     </div>
 
-    <button class="present-btn" id="presentBtn">▶ Present Fullscreen</button>
-    <p class="present-hint">Best on Android Chrome. On iPhone Safari, add this site to your Home Screen and launch it from there for true fullscreen while projecting.</p>
-
     <div class="export-row">
       <button class="export-btn" id="copyBtn">Copy all (—)</button>
       <button class="export-btn" id="downloadBtn">Download .txt</button>
@@ -654,25 +623,10 @@ Was blind but now I see"></textarea>
 <footer>MADE FOR TESTING · SAVED TO YOUR ACCOUNT ONLY</footer>
 <div class="toast" id="toast"></div>
 
-<div class="present-overlay" id="presentOverlay">
-  <div class="present-top">
-    <span class="present-label" id="presentLabel"></span>
-    <button class="present-exit" id="presentExit">✕ EXIT</button>
-  </div>
-  <div class="present-stage" id="presentStage">
-    <div class="present-text" id="presentText"></div>
-  </div>
-  <div class="present-nav">
-    <button class="present-nav-btn" id="presentPrev">‹</button>
-    <span class="present-counter" id="presentCounter">1 / 1</span>
-    <button class="present-nav-btn" id="presentNext">›</button>
-  </div>
-</div>
-
 <script>
   // ---- Supabase config: fill these in with your own values ----
-  const SUPABASE_URL = 'https://rfdpgydjhrwwzinvwsaf.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmZHBneWRqaHJ3d3ppbnZ3c2FmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwNjQ2OTEsImV4cCI6MjA5ODY0MDY5MX0.7O0K_SlicbdgO0epyOWmQIwtCIQvXs4c1iaJtpkG24I';
+  const SUPABASE_URL = 'YOUR_PROJECT_URL_HERE';
+  const SUPABASE_ANON_KEY = 'YOUR_ANON_PUBLIC_KEY_HERE';
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let mode = 'blank';
@@ -750,12 +704,13 @@ Was blind but now I see"></textarea>
     });
   });
 
-  function applyFormat(str){
-    if(format === 'upper') return str.toUpperCase();
-    if(format === 'title'){
+  function applyFormat(str, fmtOverride){
+    const f = fmtOverride || format;
+    if(f === 'upper') return str.toUpperCase();
+    if(f === 'title'){
       return str.replace(/\w\S*/g, t => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
     }
-    if(format === 'sentence'){
+    if(f === 'sentence'){
       return str.split('\n').map(line => {
         const trimmed = line.trim();
         if(!trimmed) return '';
@@ -894,118 +849,6 @@ Was blind but now I see"></textarea>
     a.download = ((titleEl.value.trim() || 'slides').replace(/\s+/g,'-').toLowerCase()) + '.txt';
     a.click();
     URL.revokeObjectURL(url);
-  });
-
-  // ---- Present Fullscreen ----
-  const presentOverlay = document.getElementById('presentOverlay');
-  const presentStage = document.getElementById('presentStage');
-  const presentText = document.getElementById('presentText');
-  const presentLabel = document.getElementById('presentLabel');
-  const presentCounter = document.getElementById('presentCounter');
-  const presentPrevBtn = document.getElementById('presentPrev');
-  const presentNextBtn = document.getElementById('presentNext');
-  const presentExitBtn = document.getElementById('presentExit');
-  const presentBtn = document.getElementById('presentBtn');
-
-  let presentIndex = 0;
-
-  function renderPresentSlide(){
-    if(slides.length === 0) return;
-    const s = slides[presentIndex];
-    presentText.textContent = applyFormat(s.text);
-    presentLabel.textContent = s.label ? s.label.toUpperCase() : '';
-    presentCounter.textContent = (presentIndex + 1) + ' / ' + slides.length;
-  }
-
-  function presentGoNext(){
-    if(presentIndex < slides.length - 1){
-      presentIndex++;
-      renderPresentSlide();
-    }
-  }
-
-  function presentGoPrev(){
-    if(presentIndex > 0){
-      presentIndex--;
-      renderPresentSlide();
-    }
-  }
-
-  async function openPresent(){
-    if(slides.length === 0){
-      showToast('Split some slides first');
-      return;
-    }
-    presentIndex = 0;
-    presentOverlay.classList.add('show');
-    renderPresentSlide();
-    try{
-      if(presentOverlay.requestFullscreen){
-        await presentOverlay.requestFullscreen();
-      } else if(presentOverlay.webkitRequestFullscreen){
-        presentOverlay.webkitRequestFullscreen();
-      }
-    }catch(e){
-      // Fullscreen API unavailable or blocked (e.g. iPhone Safari) —
-      // overlay still fills the viewport, just without hiding browser chrome.
-    }
-  }
-
-  function closePresent(){
-    if(document.fullscreenElement || document.webkitFullscreenElement){
-      if(document.exitFullscreen) document.exitFullscreen().catch(() => {});
-      else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
-    }
-    presentOverlay.classList.remove('show');
-  }
-
-  presentBtn.addEventListener('click', openPresent);
-  presentExitBtn.addEventListener('click', closePresent);
-  presentPrevBtn.addEventListener('click', presentGoPrev);
-  presentNextBtn.addEventListener('click', presentGoNext);
-
-  // Unified tap + swipe on the main stage (pointer events avoid
-  // the double-fire you'd get from separate touch + click handlers)
-  let pointerStartX = null;
-  presentStage.addEventListener('pointerdown', (e) => {
-    pointerStartX = e.clientX;
-  });
-  presentStage.addEventListener('pointerup', (e) => {
-    if(pointerStartX === null) return;
-    const dx = e.clientX - pointerStartX;
-    pointerStartX = null;
-    if(Math.abs(dx) < 30){
-      presentGoNext(); // tap = advance
-    } else if(dx < 0){
-      presentGoNext(); // swipe left = next
-    } else {
-      presentGoPrev(); // swipe right = previous
-    }
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if(!presentOverlay.classList.contains('show')) return;
-    if(e.key === 'ArrowRight' || e.key === ' '){
-      e.preventDefault();
-      presentGoNext();
-    } else if(e.key === 'ArrowLeft'){
-      presentGoPrev();
-    } else if(e.key === 'Escape'){
-      closePresent();
-    }
-  });
-
-  // Keep UI state in sync if the user exits fullscreen natively
-  // (e.g. iOS swipe-up gesture) instead of tapping the Exit button
-  document.addEventListener('fullscreenchange', () => {
-    if(!document.fullscreenElement){
-      presentOverlay.classList.remove('show');
-    }
-  });
-  document.addEventListener('webkitfullscreenchange', () => {
-    if(!document.webkitFullscreenElement){
-      presentOverlay.classList.remove('show');
-    }
   });
 
   // ---- Song library (persisted via Supabase) ----
@@ -1251,6 +1094,286 @@ Was blind but now I see"></textarea>
   });
 
   loadAllSongs();
+
+  // ---- Setlist builder ----
+
+  let currentSetlistSongs = []; // array of song ids, order = running order, duplicates allowed
+  let editingSetlistId = null;
+  let allSetlists = [];
+
+  const setlistTitleEl = document.getElementById('setlistTitle');
+  const setlistSongSearchEl = document.getElementById('setlistSongSearch');
+  const setlistAddResultsEl = document.getElementById('setlistAddResults');
+  const setlistOrderListEl = document.getElementById('setlistOrderList');
+  const saveSetlistBtn = document.getElementById('saveSetlistBtn');
+  const newSetlistBtn = document.getElementById('newSetlistBtn');
+  const setlistEditStatus = document.getElementById('setlistEditStatus');
+  const copySetlistBtn = document.getElementById('copySetlistBtn');
+  const downloadSetlistBtn = document.getElementById('downloadSetlistBtn');
+  const savedSetlistsListEl = document.getElementById('savedSetlistsList');
+  const setlistCountEl = document.getElementById('setlistCount');
+
+  function buildSlidesForSong(song){
+    const n = song.lineCount || 2;
+    let raw;
+    if(song.mode === 'count') raw = splitByLineCount(song.lyrics, n);
+    else if(song.mode === 'auto') raw = splitByAutoSections(song.lyrics, n);
+    else raw = splitByBlankLines(song.lyrics);
+    const fmt = song.format || 'none';
+    return raw.map(s => ({ text: applyFormat(s.text, fmt), label: s.label }));
+  }
+
+  function renderSetlistOrder(){
+    if(currentSetlistSongs.length === 0){
+      setlistOrderListEl.innerHTML = '<div class="empty">No songs added yet.</div>';
+      copySetlistBtn.textContent = 'Copy full run (0)';
+      return;
+    }
+    copySetlistBtn.textContent = 'Copy full run (' + currentSetlistSongs.length + ')';
+    setlistOrderListEl.innerHTML = currentSetlistSongs.map((id, idx) => {
+      const song = allSongs.find(s => s.id === id);
+      const title = song ? song.title : '(song removed from library)';
+      const artist = song && song.artist ? song.artist : '';
+      return `
+        <div class="setlist-item">
+          <span class="idx">${idx + 1}</span>
+          <div class="info">
+            <div class="t">${escapeHtml(title || 'Untitled')}</div>
+            ${artist ? `<div class="a">${escapeHtml(artist)}</div>` : ''}
+          </div>
+          <div class="actions">
+            <button data-up="${idx}" ${idx === 0 ? 'disabled' : ''}>↑</button>
+            <button data-down="${idx}" ${idx === currentSetlistSongs.length - 1 ? 'disabled' : ''}>↓</button>
+            <button data-remove="${idx}">✕</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  setlistOrderListEl.addEventListener('click', (e) => {
+    const up = e.target.dataset.up;
+    const down = e.target.dataset.down;
+    const remove = e.target.dataset.remove;
+    if(up !== undefined){
+      const i = parseInt(up, 10);
+      [currentSetlistSongs[i-1], currentSetlistSongs[i]] = [currentSetlistSongs[i], currentSetlistSongs[i-1]];
+      renderSetlistOrder();
+    } else if(down !== undefined){
+      const i = parseInt(down, 10);
+      [currentSetlistSongs[i+1], currentSetlistSongs[i]] = [currentSetlistSongs[i], currentSetlistSongs[i+1]];
+      renderSetlistOrder();
+    } else if(remove !== undefined){
+      currentSetlistSongs.splice(parseInt(remove, 10), 1);
+      renderSetlistOrder();
+    }
+  });
+
+  function renderSetlistAddResults(){
+    const q = setlistSongSearchEl.value.trim().toLowerCase();
+    if(!q){
+      setlistAddResultsEl.innerHTML = '';
+      return;
+    }
+    const matches = allSongs.filter(s =>
+      (s.title || '').toLowerCase().includes(q) ||
+      (s.artist || '').toLowerCase().includes(q) ||
+      (s.lyrics || '').toLowerCase().includes(q) ||
+      (s.tags || []).some(t => t.toLowerCase().includes(q))
+    ).slice(0, 8);
+
+    if(matches.length === 0){
+      setlistAddResultsEl.innerHTML = '<div class="empty">No matching songs.</div>';
+      return;
+    }
+
+    setlistAddResultsEl.innerHTML = matches.map(s => `
+      <div class="add-result">
+        <span class="t">${escapeHtml(s.title || 'Untitled')}${s.artist ? ' — ' + escapeHtml(s.artist) : ''}</span>
+        <button data-add="${s.id}">+ ADD</button>
+      </div>
+    `).join('');
+  }
+
+  setlistSongSearchEl.addEventListener('input', renderSetlistAddResults);
+
+  setlistAddResultsEl.addEventListener('click', (e) => {
+    const addId = e.target.dataset.add;
+    if(!addId) return;
+    currentSetlistSongs.push(addId);
+    setlistSongSearchEl.value = '';
+    setlistAddResultsEl.innerHTML = '';
+    renderSetlistOrder();
+    showToast('Added to running order');
+  });
+
+  newSetlistBtn.addEventListener('click', () => {
+    editingSetlistId = null;
+    setlistTitleEl.value = '';
+    currentSetlistSongs = [];
+    renderSetlistOrder();
+    setlistEditStatus.style.display = 'none';
+    showToast('Ready for a new setlist');
+  });
+
+  saveSetlistBtn.addEventListener('click', async () => {
+    const title = setlistTitleEl.value.trim();
+    if(!title){
+      showToast('Add a setlist name first');
+      setlistTitleEl.focus();
+      return;
+    }
+    if(currentSetlistSongs.length === 0){
+      showToast('Add at least one song first');
+      return;
+    }
+    const row = { title, song_ids: currentSetlistSongs };
+    try{
+      let error;
+      if(editingSetlistId){
+        ({ error } = await db.from('setlists').update(row).eq('id', editingSetlistId));
+      } else {
+        ({ error } = await db.from('setlists').insert(row));
+      }
+      if(error) throw error;
+      showToast('Saved "' + title + '"');
+      editingSetlistId = null;
+      setlistTitleEl.value = '';
+      currentSetlistSongs = [];
+      renderSetlistOrder();
+      setlistEditStatus.style.display = 'none';
+      await loadAllSetlists();
+    }catch(e){
+      console.error(e);
+      showToast('Error: ' + (e.message || JSON.stringify(e)));
+    }
+  });
+
+  copySetlistBtn.addEventListener('click', async () => {
+    if(currentSetlistSongs.length === 0) return;
+    const text = buildSetlistText();
+    try{
+      await navigator.clipboard.writeText(text);
+      showToast('Copied full run');
+    }catch(e){
+      alert('Could not copy — select and copy manually.');
+    }
+  });
+
+  downloadSetlistBtn.addEventListener('click', () => {
+    if(currentSetlistSongs.length === 0) return;
+    const text = buildSetlistText();
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = ((setlistTitleEl.value.trim() || 'setlist').replace(/\s+/g,'-').toLowerCase()) + '.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  function buildSetlistText(){
+    const blocks = currentSetlistSongs.map(id => {
+      const song = allSongs.find(s => s.id === id);
+      if(!song) return '[Song removed from library]';
+      const header = '=== ' + (song.title || 'Untitled') + (song.artist ? ' — ' + song.artist : '') + ' ===';
+      const slideTexts = buildSlidesForSong(song).map(s => (s.label ? '[' + s.label + ']\n' : '') + s.text);
+      return header + '\n\n' + slideTexts.join('\n\n---\n\n');
+    });
+    return blocks.join('\n\n========================\n\n');
+  }
+
+  async function loadAllSetlists(){
+    try{
+      const { data, error } = await db
+        .from('setlists')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if(error) throw error;
+      allSetlists = data || [];
+    }catch(e){
+      console.error(e);
+      allSetlists = [];
+      showToast('Could not load setlists');
+    }
+    renderSavedSetlists();
+  }
+
+  function renderSavedSetlists(){
+    setlistCountEl.textContent = allSetlists.length + ' saved';
+    if(allSetlists.length === 0){
+      savedSetlistsListEl.innerHTML = '<div class="empty">No setlists yet.</div>';
+      return;
+    }
+    savedSetlistsListEl.innerHTML = allSetlists.map(sl => {
+      const count = (sl.song_ids || []).length;
+      return `
+        <div class="song-item" data-slid="${sl.id}">
+          <div class="song-main">
+            <p class="song-title">${escapeHtml(sl.title || 'Untitled setlist')}</p>
+            <p class="song-artist">${count} song${count === 1 ? '' : 's'}</p>
+          </div>
+          <div class="setlist-actions-col">
+            <button data-open="${sl.id}">OPEN</button>
+            <button data-dupe="${sl.id}">DUPLICATE</button>
+            <button data-delsl="${sl.id}">DELETE</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  savedSetlistsListEl.addEventListener('click', async (e) => {
+    const openId = e.target.dataset.open;
+    const dupeId = e.target.dataset.dupe;
+    const delId = e.target.dataset.delsl;
+
+    if(openId){
+      const sl = allSetlists.find(s => s.id === openId);
+      if(!sl) return;
+      editingSetlistId = sl.id;
+      setlistTitleEl.value = sl.title || '';
+      currentSetlistSongs = [...(sl.song_ids || [])];
+      renderSetlistOrder();
+      setlistEditStatus.style.display = 'block';
+      setlistEditStatus.textContent = 'EDITING "' + (sl.title || 'Untitled') + '" — hit New setlist to start fresh instead';
+      showToast('Loaded "' + (sl.title || 'Untitled') + '"');
+      return;
+    }
+
+    if(dupeId){
+      const sl = allSetlists.find(s => s.id === dupeId);
+      if(!sl) return;
+      try{
+        const { error } = await db.from('setlists').insert({
+          title: 'Copy of ' + (sl.title || 'Untitled'),
+          song_ids: sl.song_ids || []
+        });
+        if(error) throw error;
+        showToast('Duplicated as template');
+        await loadAllSetlists();
+      }catch(e){
+        console.error(e);
+        showToast('Could not duplicate');
+      }
+      return;
+    }
+
+    if(delId){
+      try{
+        const { error } = await db.from('setlists').delete().eq('id', delId);
+        if(error) throw error;
+        showToast('Deleted');
+        if(editingSetlistId === delId) editingSetlistId = null;
+        await loadAllSetlists();
+      }catch(e){
+        console.error(e);
+        showToast('Could not delete');
+      }
+    }
+  });
+
+  loadAllSetlists();
 </script>
 
 </body>
