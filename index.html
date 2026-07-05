@@ -563,6 +563,63 @@
     transform: translateX(-50%) translateY(-6px);
   }
 
+  .present-overlay{
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: #0A0A0C;
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 6vw;
+  }
+  .present-overlay.show{ display: flex; }
+  .present-text{
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    color: #fff;
+    font-size: clamp(28px, 6vw, 64px);
+    line-height: 1.4;
+    white-space: pre-line;
+    text-shadow: 0 4px 18px rgba(0,0,0,0.6);
+    z-index: 2;
+    position: relative;
+  }
+  .present-exit{
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    z-index: 10;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .present-counter{
+    position: absolute;
+    top: 22px;
+    left: 20px;
+    z-index: 10;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.05em;
+  }
+  .present-zone{
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 40%;
+    z-index: 5;
+  }
+  .present-zone-left{ left: 0; }
+  .present-zone-right{ right: 0; }
+
   footer{
     text-align:center;
     color: var(--muted);
@@ -673,7 +730,9 @@ Was blind but now I see"></textarea>
       <div class="empty">Your slides will show up here.</div>
     </div>
 
-    <div class="export-row">
+    <button class="go-btn" id="presentBtn" style="margin-top:14px;">▶ Present fullscreen</button>
+
+    <div class="export-row" style="margin-top:12px;">
       <button class="export-btn" id="copyBtn">Copy all (—)</button>
       <button class="export-btn" id="downloadBtn">Download .txt</button>
     </div>
@@ -743,6 +802,14 @@ Was blind but now I see"></textarea>
 <footer>MADE FOR TESTING · SAVED TO YOUR ACCOUNT ONLY</footer>
 <div class="toast" id="toast"></div>
 
+<div id="presentOverlay" class="present-overlay">
+  <button id="presentExit" class="present-exit">✕</button>
+  <span id="presentCounter" class="present-counter"></span>
+  <div id="presentText" class="present-text"></div>
+  <div class="present-zone present-zone-left" id="presentPrev"></div>
+  <div class="present-zone present-zone-right" id="presentNext"></div>
+</div>
+
 <script>
   // ---- Supabase config: fill these in with your own values ----
   const SUPABASE_URL = 'https://rfdpgydjhrwwzinvwsaf.supabase.co';
@@ -793,6 +860,14 @@ Was blind but now I see"></textarea>
   const slideCountEl = document.getElementById('slideCount');
   const copyBtn = document.getElementById('copyBtn');
   const downloadBtn = document.getElementById('downloadBtn');
+  const presentBtn = document.getElementById('presentBtn');
+  const presentOverlay = document.getElementById('presentOverlay');
+  const presentText = document.getElementById('presentText');
+  const presentCounter = document.getElementById('presentCounter');
+  const presentExit = document.getElementById('presentExit');
+  const presentPrev = document.getElementById('presentPrev');
+  const presentNext = document.getElementById('presentNext');
+  let presentIndex = 0;
   const searchEl = document.getElementById('search');
   const songListEl = document.getElementById('songList');
   const filterRowEl = document.getElementById('filterRow');
@@ -951,6 +1026,69 @@ Was blind but now I see"></textarea>
     }
     return { class: '', style: `style="background:${background.value};"` };
   }
+
+  function applyPresentBackground(){
+    presentOverlay.className = 'present-overlay show';
+    if(background.type === 'motion'){
+      presentOverlay.classList.add('bg-' + background.value);
+      presentOverlay.style.background = '';
+      presentOverlay.style.backgroundImage = '';
+    } else if(background.type === 'image'){
+      presentOverlay.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.45)), url('${background.value.replace(/'/g,"%27")}')`;
+      presentOverlay.style.backgroundSize = 'cover';
+      presentOverlay.style.backgroundPosition = 'center';
+    } else {
+      presentOverlay.style.backgroundImage = '';
+      presentOverlay.style.background = background.value;
+    }
+  }
+
+  function renderPresentSlide(){
+    if(slides.length === 0) return;
+    if(presentIndex < 0) presentIndex = 0;
+    if(presentIndex > slides.length - 1) presentIndex = slides.length - 1;
+    const s = slides[presentIndex];
+    presentText.textContent = applyFormat(s.text);
+    presentCounter.textContent = (s.label ? s.label.toUpperCase() + ' · ' : '') + (presentIndex+1) + ' / ' + slides.length;
+  }
+
+  function openPresent(){
+    if(slides.length === 0){
+      showToast('Split into slides first');
+      return;
+    }
+    presentIndex = 0;
+    applyPresentBackground();
+    renderPresentSlide();
+    if(presentOverlay.requestFullscreen){
+      presentOverlay.requestFullscreen().catch(() => {});
+    }
+  }
+
+  function closePresent(){
+    presentOverlay.classList.remove('show');
+    if(document.fullscreenElement){
+      document.exitFullscreen().catch(() => {});
+    }
+  }
+
+  presentBtn.addEventListener('click', openPresent);
+  presentExit.addEventListener('click', closePresent);
+  presentPrev.addEventListener('click', () => { presentIndex--; renderPresentSlide(); });
+  presentNext.addEventListener('click', () => { presentIndex++; renderPresentSlide(); });
+
+  document.addEventListener('keydown', (e) => {
+    if(!presentOverlay.classList.contains('show')) return;
+    if(e.key === 'ArrowRight' || e.key === ' ') { presentIndex++; renderPresentSlide(); }
+    if(e.key === 'ArrowLeft') { presentIndex--; renderPresentSlide(); }
+    if(e.key === 'Escape') closePresent();
+  });
+
+  document.addEventListener('fullscreenchange', () => {
+    if(!document.fullscreenElement && presentOverlay.classList.contains('show')){
+      presentOverlay.classList.remove('show');
+    }
+  });
 
   function render(){
     slideCountEl.textContent = slides.length + (slides.length === 1 ? ' slide' : ' slides');
