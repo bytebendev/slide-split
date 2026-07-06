@@ -7,6 +7,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <style>
   :root{
     --bg: #1B1D22;
@@ -736,7 +739,7 @@ Was blind but now I see"></textarea>
 
     <div class="export-row" style="margin-top:12px;">
       <button class="export-btn" id="copyBtn">Copy all (—)</button>
-      <button class="export-btn" id="downloadBtn">Download .txt</button>
+      <button class="export-btn" id="downloadBtn">Download .pptx</button>
     </div>
   </div>
   </div>
@@ -788,9 +791,11 @@ Was blind but now I see"></textarea>
     </div>
     <p id="setlistEditStatus" style="display:none; font-family:'JetBrains Mono',monospace; font-size:11px; color: var(--muted); margin: 10px 0 0;"></p>
 
-    <div class="export-row" style="margin-top:16px;">
+    <button class="go-btn" id="presentSetlistBtn" style="margin-top:14px;">▶ Present full run</button>
+
+    <div class="export-row" style="margin-top:12px;">
       <button class="export-btn" id="copySetlistBtn">Copy full run (0)</button>
-      <button class="export-btn" id="downloadSetlistBtn">Download .txt</button>
+      <button class="export-btn" id="downloadSetlistBtn">Download .pptx</button>
     </div>
 
     <label style="margin-top:20px;">Saved setlists</label>
@@ -1051,42 +1056,55 @@ Was blind but now I see"></textarea>
     return { class: '', style: `style="background:${background.value};"` };
   }
 
-  function applyPresentBackground(){
+  let presentSlides = []; // array of {text, label, background, songTitle}
+
+  function applyPresentBackground(bg){
+    bg = bg || { type: 'color', value: '#0A0A0C' };
     presentOverlay.className = 'present-overlay show';
-    if(background.type === 'motion'){
-      presentOverlay.classList.add('bg-' + background.value);
+    if(bg.type === 'motion'){
+      presentOverlay.classList.add('bg-' + bg.value);
       presentOverlay.style.background = '';
       presentOverlay.style.backgroundImage = '';
-    } else if(background.type === 'image'){
-      presentOverlay.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.45)), url('${background.value.replace(/'/g,"%27")}')`;
+    } else if(bg.type === 'image'){
+      presentOverlay.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.45)), url('${bg.value.replace(/'/g,"%27")}')`;
       presentOverlay.style.backgroundSize = 'cover';
       presentOverlay.style.backgroundPosition = 'center';
     } else {
       presentOverlay.style.backgroundImage = '';
-      presentOverlay.style.background = background.value;
+      presentOverlay.style.background = bg.value;
     }
   }
 
   function renderPresentSlide(){
-    if(slides.length === 0) return;
+    if(presentSlides.length === 0) return;
     if(presentIndex < 0) presentIndex = 0;
-    if(presentIndex > slides.length - 1) presentIndex = slides.length - 1;
-    const s = slides[presentIndex];
-    presentText.textContent = applyFormat(s.text);
-    presentCounter.textContent = (s.label ? s.label.toUpperCase() + ' · ' : '') + (presentIndex+1) + ' / ' + slides.length;
+    if(presentIndex > presentSlides.length - 1) presentIndex = presentSlides.length - 1;
+    const s = presentSlides[presentIndex];
+    applyPresentBackground(s.background);
+    presentText.textContent = s.text;
+    const parts = [];
+    if(s.songTitle) parts.push(s.songTitle);
+    if(s.label) parts.push(s.label.toUpperCase());
+    parts.push((presentIndex+1) + ' / ' + presentSlides.length);
+    presentCounter.textContent = parts.join(' · ');
   }
 
-  function openPresent(){
-    if(slides.length === 0){
-      showToast('Split into slides first');
+  function openPresentWith(items){
+    if(!items || items.length === 0){
+      showToast('Nothing to present yet');
       return;
     }
+    presentSlides = items;
     presentIndex = 0;
-    applyPresentBackground();
     renderPresentSlide();
     if(presentOverlay.requestFullscreen){
       presentOverlay.requestFullscreen().catch(() => {});
     }
+  }
+
+  function openPresent(){
+    const items = slides.map(s => ({ text: applyFormat(s.text), label: s.label, background }));
+    openPresentWith(items);
   }
 
   function closePresent(){
@@ -1168,16 +1186,84 @@ Was blind but now I see"></textarea>
     }
   });
 
-  downloadBtn.addEventListener('click', () => {
-    if(slides.length === 0) return;
-    const joined = slides.map(s => (s.label ? '[' + s.label + ']\n' : '') + applyFormat(s.text)).join('\n\n---\n\n');
-    const blob = new Blob([joined], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = ((titleEl.value.trim() || 'slides').replace(/\s+/g,'-').toLowerCase()) + '.txt';
-    a.click();
-    URL.revokeObjectURL(url);
+  const MOTION_FALLBACK_COLOR = {
+    'motion-1': '4A3418',
+    'motion-2': '2A1E4A',
+    'motion-3': '2A2320'
+  };
+
+  async function imageUrlToBase64(url){
+    try{
+      const res = await fetch(url, { mode: 'cors' });
+      const blob = await res.blob();
+      return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }catch(e){
+      return null;
+    }
+  }
+
+  async function addSlideItemsToPptx(pptx, items, dividerTitle){
+    if(dividerTitle){
+      const divider = pptx.addSlide();
+      divider.background = { color: '0A0A0C' };
+      divider.addText(dividerTitle, {
+        x: 0.5, y: 2.1, w: 9, h: 1.4,
+        align: 'center', valign: 'middle',
+        fontFace: 'Arial', bold: true,
+        fontSize: 32, color: 'E8A33D'
+      });
+    }
+    for(const item of items){
+      const slide = pptx.addSlide();
+      const bg = item.background || { type: 'color', value: '#0A0A0C' };
+      if(bg.type === 'motion'){
+        slide.background = { color: MOTION_FALLBACK_COLOR[bg.value] || '0A0A0C' };
+      } else if(bg.type === 'image'){
+        const dataUrl = await imageUrlToBase64(bg.value);
+        slide.background = dataUrl ? { data: dataUrl } : { color: '0A0A0C' };
+      } else {
+        slide.background = { color: (bg.value || '#0A0A0C').replace('#', '') };
+      }
+      slide.addText(item.text, {
+        x: 0.5, y: 0.55, w: 9, h: 4.5,
+        align: 'center', valign: 'middle',
+        fontFace: 'Arial', bold: true,
+        fontSize: 32, color: 'FFFFFF',
+        shrinkText: true
+      });
+      if(item.label){
+        slide.addText(item.label.toUpperCase(), {
+          x: 0.3, y: 0.15, w: 5, h: 0.4,
+          fontFace: 'Courier New', fontSize: 11, color: 'E8A33D'
+        });
+      }
+    }
+  }
+
+  downloadBtn.addEventListener('click', async () => {
+    if(slides.length === 0){
+      showToast('Split into slides first');
+      return;
+    }
+    showToast('Building PowerPoint…');
+    try{
+      const pptx = new PptxGenJS();
+      pptx.defineLayout({ name: 'WIDE', width: 10, height: 5.63 });
+      pptx.layout = 'WIDE';
+      const items = slides.map(s => ({ text: applyFormat(s.text), label: s.label, background }));
+      await addSlideItemsToPptx(pptx, items);
+      const fileName = (titleEl.value.trim() || 'slides').replace(/\s+/g,'-').toLowerCase() + '.pptx';
+      await pptx.writeFile({ fileName });
+      showToast('Downloaded');
+    }catch(e){
+      console.error(e);
+      showToast('Could not build PowerPoint: ' + (e.message || e));
+    }
   });
 
   // ---- Song library (persisted via Supabase) ----
@@ -1452,6 +1538,7 @@ Was blind but now I see"></textarea>
   const setlistEditStatus = document.getElementById('setlistEditStatus');
   const copySetlistBtn = document.getElementById('copySetlistBtn');
   const downloadSetlistBtn = document.getElementById('downloadSetlistBtn');
+  const presentSetlistBtn = document.getElementById('presentSetlistBtn');
   const savedSetlistsListEl = document.getElementById('savedSetlistsList');
   const setlistCountEl = document.getElementById('setlistCount');
 
@@ -1464,6 +1551,23 @@ Was blind but now I see"></textarea>
     const fmt = song.format || 'none';
     return raw.map(s => ({ text: applyFormat(s.text, fmt), label: s.label }));
   }
+
+  presentSetlistBtn.addEventListener('click', () => {
+    if(currentSetlistSongs.length === 0){
+      showToast('Add songs to the setlist first');
+      return;
+    }
+    const combined = [];
+    currentSetlistSongs.forEach(id => {
+      const song = allSongs.find(s => s.id === id);
+      if(!song) return;
+      const bg = song.background || { type: 'color', value: '#0A0A0C' };
+      buildSlidesForSong(song).forEach(s => {
+        combined.push({ text: s.text, label: s.label, background: bg, songTitle: song.title });
+      });
+    });
+    openPresentWith(combined);
+  });
 
   function renderSetlistOrder(){
     if(currentSetlistSongs.length === 0){
@@ -1602,16 +1706,34 @@ Was blind but now I see"></textarea>
     }
   });
 
-  downloadSetlistBtn.addEventListener('click', () => {
-    if(currentSetlistSongs.length === 0) return;
-    const text = buildSetlistText();
-    const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = ((setlistTitleEl.value.trim() || 'setlist').replace(/\s+/g,'-').toLowerCase()) + '.txt';
-    a.click();
-    URL.revokeObjectURL(url);
+  downloadSetlistBtn.addEventListener('click', async () => {
+    if(currentSetlistSongs.length === 0){
+      showToast('Add songs to the setlist first');
+      return;
+    }
+    showToast('Building PowerPoint…');
+    try{
+      const pptx = new PptxGenJS();
+      pptx.defineLayout({ name: 'WIDE', width: 10, height: 5.63 });
+      pptx.layout = 'WIDE';
+      for(const id of currentSetlistSongs){
+        const song = allSongs.find(s => s.id === id);
+        if(!song) continue;
+        const items = buildSlidesForSong(song).map(s => ({
+          text: s.text,
+          label: s.label,
+          background: song.background || { type: 'color', value: '#0A0A0C' }
+        }));
+        const divider = song.title + (song.artist ? ' — ' + song.artist : '');
+        await addSlideItemsToPptx(pptx, items, divider);
+      }
+      const fileName = (setlistTitleEl.value.trim() || 'setlist').replace(/\s+/g,'-').toLowerCase() + '.pptx';
+      await pptx.writeFile({ fileName });
+      showToast('Downloaded');
+    }catch(e){
+      console.error(e);
+      showToast('Could not build PowerPoint: ' + (e.message || e));
+    }
   });
 
   function buildSetlistText(){
