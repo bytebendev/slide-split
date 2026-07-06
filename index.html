@@ -8,8 +8,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <style>
   :root{
     --bg: #1B1D22;
@@ -630,6 +628,111 @@
     font-family: 'JetBrains Mono', monospace;
     padding: 20px;
   }
+
+  .live-btn{
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid #b23a3a;
+    color: #e8635e;
+    padding: 12px;
+    border-radius: 9px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 13.5px;
+    cursor: pointer;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .live-btn:active{ background: rgba(232,99,94,0.12); }
+  .live-btn .dot{
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #e8635e;
+    box-shadow: 0 0 8px 1px rgba(232,99,94,0.6);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  .live-panel{
+    margin-top: 12px;
+    background: var(--panel-2);
+    border: 1px solid #b23a3a;
+    border-radius: 10px;
+    padding: 14px;
+    display: none;
+  }
+  .live-panel.show{ display: block; }
+  .live-panel .live-head{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .live-panel .live-head .status{
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #e8635e;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .live-link-row{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    background: var(--screen);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 10px;
+    margin-bottom: 8px;
+  }
+  .live-link-row .lbl{
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    color: var(--muted);
+    width: 62px;
+    flex-shrink: 0;
+    letter-spacing: 0.05em;
+  }
+  .live-link-row .url{
+    flex: 1;
+    min-width: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .live-link-row button{
+    flex-shrink: 0;
+    background: rgba(232,163,61,0.12);
+    border: 1px solid var(--amber);
+    color: var(--amber);
+    border-radius: 6px;
+    padding: 5px 9px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    cursor: pointer;
+  }
+  .end-session-btn{
+    width: 100%;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 9px;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 12.5px;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  .end-session-btn:active{ border-color: #e8635e; color: #e8635e; }
 </style>
 </head>
 <body>
@@ -736,6 +839,8 @@ Was blind but now I see"></textarea>
     </div>
 
     <button class="go-btn" id="presentBtn" style="margin-top:14px;">▶ Present fullscreen</button>
+    <button class="live-btn" id="goLiveBtn"><span class="dot"></span>Go live (multi-device)</button>
+    <div class="live-panel" id="livePanel"></div>
 
     <div class="export-row" style="margin-top:12px;">
       <button class="export-btn" id="copyBtn">Copy all (—)</button>
@@ -792,6 +897,8 @@ Was blind but now I see"></textarea>
     <p id="setlistEditStatus" style="display:none; font-family:'JetBrains Mono',monospace; font-size:11px; color: var(--muted); margin: 10px 0 0;"></p>
 
     <button class="go-btn" id="presentSetlistBtn" style="margin-top:14px;">▶ Present full run</button>
+    <button class="live-btn" id="goLiveSetlistBtn"><span class="dot"></span>Go live (multi-device)</button>
+    <div class="live-panel" id="liveSetlistPanel"></div>
 
     <div class="export-row" style="margin-top:12px;">
       <button class="export-btn" id="copySetlistBtn">Copy full run (0)</button>
@@ -1838,6 +1945,143 @@ Was blind but now I see"></textarea>
   });
 
   loadAllSetlists();
+
+  // ---- Live session (Phase B) ----
+
+  let activeSession = null; // { id, presenter_code, panelEl }
+
+  function randomCode(len){
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I confusion
+    let out = '';
+    for(let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
+    return out;
+  }
+
+  function sessionLinks(sessionId, code){
+    const base = location.origin + location.pathname;
+    return {
+      display: `${base}?session=${sessionId}&role=display`,
+      presenter: `${base}?session=${sessionId}&role=presenter&key=${code}`,
+      monitor: `${base}?session=${sessionId}&role=monitor`
+    };
+  }
+
+  async function copyLinkFallback(text){
+    try{
+      await navigator.clipboard.writeText(text);
+      showToast('Link copied');
+    }catch(e){
+      showToast('Could not copy — long-press the link to copy manually');
+    }
+  }
+
+  function renderLivePanel(panelEl, sessionId, code, slideTotal){
+    const links = sessionLinks(sessionId, code);
+    panelEl.innerHTML = `
+      <div class="live-head">
+        <span class="status"><span class="dot"></span>LIVE · ${slideTotal} slides</span>
+      </div>
+      <div class="live-link-row">
+        <span class="lbl">DISPLAY</span>
+        <span class="url">${links.display}</span>
+        <button data-copy="display">COPY</button>
+      </div>
+      <div class="live-link-row">
+        <span class="lbl">PRESENTER</span>
+        <span class="url">${links.presenter}</span>
+        <button data-copy="presenter">COPY</button>
+      </div>
+      <div class="live-link-row">
+        <span class="lbl">MONITOR</span>
+        <span class="url">${links.monitor}</span>
+        <button data-copy="monitor">COPY</button>
+      </div>
+      <button class="end-session-btn" data-end="1">End session</button>
+    `;
+    panelEl.classList.add('show');
+    panelEl.querySelectorAll('[data-copy]').forEach(btn => {
+      btn.addEventListener('click', () => copyLinkFallback(links[btn.dataset.copy]));
+    });
+    panelEl.querySelector('[data-end]').addEventListener('click', () => endSession(panelEl));
+  }
+
+  async function startLiveSession(items, title, panelEl, btnEl){
+    if(!items || items.length === 0){
+      showToast('Nothing to go live with yet — split or add songs first');
+      return;
+    }
+    btnEl.disabled = true;
+    const originalLabel = btnEl.innerHTML;
+    btnEl.innerHTML = '<span class="dot"></span>Starting…';
+    try{
+      const code = randomCode(6);
+      const { data, error } = await db.from('sessions').insert({
+        presenter_code: code,
+        title: title || 'Untitled',
+        slides: items,
+        current_index: 0,
+        status: 'live'
+      }).select().single();
+      if(error) throw error;
+      activeSession = { id: data.id, code, panelEl };
+      renderLivePanel(panelEl, data.id, code, items.length);
+      showToast('Live! Share the presenter link to control it.');
+    }catch(e){
+      console.error(e);
+      showToast('Could not start session: ' + (e.message || e));
+    }finally{
+      btnEl.disabled = false;
+      btnEl.innerHTML = originalLabel;
+    }
+  }
+
+  async function endSession(panelEl){
+    if(!activeSession){
+      panelEl.classList.remove('show');
+      return;
+    }
+    try{
+      const { error } = await db.from('sessions').update({ status: 'ended' }).eq('id', activeSession.id);
+      if(error) throw error;
+      showToast('Session ended');
+    }catch(e){
+      console.error(e);
+      showToast('Could not end session cleanly — it may still show as live');
+    }
+    panelEl.classList.remove('show');
+    panelEl.innerHTML = '';
+    activeSession = null;
+  }
+
+  const goLiveBtn = document.getElementById('goLiveBtn');
+  const livePanel = document.getElementById('livePanel');
+  goLiveBtn.addEventListener('click', () => {
+    if(slides.length === 0){
+      showToast('Split into slides first');
+      return;
+    }
+    const items = slides.map(s => ({ text: applyFormat(s.text), label: s.label, background, songTitle: titleEl.value.trim() || null }));
+    startLiveSession(items, titleEl.value.trim() || 'Untitled song', livePanel, goLiveBtn);
+  });
+
+  const goLiveSetlistBtn = document.getElementById('goLiveSetlistBtn');
+  const liveSetlistPanel = document.getElementById('liveSetlistPanel');
+  goLiveSetlistBtn.addEventListener('click', () => {
+    if(currentSetlistSongs.length === 0){
+      showToast('Add songs to the setlist first');
+      return;
+    }
+    const combined = [];
+    currentSetlistSongs.forEach(id => {
+      const song = allSongs.find(s => s.id === id);
+      if(!song) return;
+      const bg = song.background || { type: 'color', value: '#0A0A0C' };
+      buildSlidesForSong(song).forEach(s => {
+        combined.push({ text: s.text, label: s.label, background: bg, songTitle: song.title });
+      });
+    });
+    startLiveSession(combined, setlistTitleEl.value.trim() || 'Untitled setlist', liveSetlistPanel, goLiveSetlistBtn);
+  });
 </script>
 
 </body>
