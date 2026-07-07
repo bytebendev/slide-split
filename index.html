@@ -2213,36 +2213,43 @@ Was blind but now I see"></textarea>
     if(row.presenter_code !== key){ showRoleEndedScreen('INVALID PRESENTER LINK'); return; }
     if(row.status === 'ended'){ showRoleEndedScreen('SESSION ENDED'); return; }
 
-    let localIndex = row.current_index || 0;
+    let liveIndex = row.current_index || 0;
+    let previewIndex = (row.preview_index !== null && row.preview_index !== undefined) ? row.preview_index : liveIndex;
     let slidesArr = row.slides || [];
     let editingSlideIdx = null;
 
     document.body.innerHTML = `
       <div style="position:fixed;inset:0;background:#1B1D22;display:flex;flex-direction:column;padding:16px;box-sizing:border-box;font-family:'Inter',sans-serif;color:#F2F2F0;">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8B8D96;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">${escapeHtml(row.title || 'Live session')} · PRESENTER</div>
-        <div style="background:#0A0A0C;border:1px solid #34363E;border-radius:10px;padding:16px;margin-bottom:10px;">
-          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#6b5427;margin-bottom:6px;">NOW</div>
-          <div id="presNowText" style="font-weight:700;font-size:17px;line-height:1.4;white-space:pre-line;"></div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8B8D96;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">${escapeHtml(row.title || 'Live session')} · OPERATOR</div>
+
+        <div style="background:#0A0A0C;border:2px solid #E8635E;border-radius:10px;padding:14px;margin-bottom:8px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#e8635e;margin-bottom:6px;letter-spacing:0.08em;">● LIVE — ON SCREEN NOW</div>
+          <div id="liveSlideText" style="font-weight:700;font-size:16px;line-height:1.4;white-space:pre-line;color:#fff;"></div>
         </div>
-        <div style="background:#24262C;border:1px solid #34363E;border-radius:10px;padding:14px;margin-bottom:14px;">
-          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#6b5427;margin-bottom:6px;">NEXT</div>
-          <div id="presNextText" style="font-weight:600;font-size:14px;color:#8B8D96;line-height:1.4;white-space:pre-line;"></div>
+
+        <div style="background:#24262C;border:2px solid #E8A33D;border-radius:10px;padding:14px;margin-bottom:10px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#E8A33D;margin-bottom:6px;letter-spacing:0.08em;">◐ PREVIEW — STAGED, NOT YET LIVE</div>
+          <div id="previewSlideText" style="font-weight:700;font-size:16px;line-height:1.4;white-space:pre-line;color:#fff;"></div>
         </div>
-        <div style="display:flex;gap:10px;margin-bottom:12px;">
-          <button id="presPrevBtn" style="flex:1;background:#2C2E36;border:1px solid #34363E;color:#F2F2F0;padding:16px;border-radius:9px;font-family:'Archivo Black',sans-serif;font-size:14px;">◀ PREV</button>
-          <button id="presNextBtn" style="flex:1;background:linear-gradient(135deg,#F2B65D,#E8A33D);border:none;color:#1B1D22;padding:16px;border-radius:9px;font-family:'Archivo Black',sans-serif;font-size:14px;">NEXT ▶</button>
+
+        <button id="takeBtn" style="width:100%;background:linear-gradient(135deg,#F2B65D,#E8A33D);border:none;color:#1B1D22;padding:16px;border-radius:9px;font-family:'Archivo Black',sans-serif;font-size:15px;margin-bottom:12px;box-shadow:0 8px 20px -8px rgba(232,163,61,0.55);">TAKE →</button>
+
+        <div style="display:flex;gap:10px;margin-bottom:10px;">
+          <button id="presPrevBtn" style="flex:1;background:#2C2E36;border:1px solid #34363E;color:#F2F2F0;padding:13px;border-radius:9px;font-family:'Inter',sans-serif;font-weight:700;font-size:13px;">◀ Preview prev</button>
+          <button id="presNextBtn" style="flex:1;background:#2C2E36;border:1px solid #34363E;color:#F2F2F0;padding:13px;border-radius:9px;font-family:'Inter',sans-serif;font-weight:700;font-size:13px;">Preview next ▶</button>
         </div>
         <div id="presCounter" style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;color:#8B8D96;margin-bottom:12px;"></div>
-        <label style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#8B8D96;margin-bottom:6px;">Jump to slide</label>
+        <label style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#8B8D96;margin-bottom:6px;">Tap a slide to stage it in Preview</label>
         <div id="presJumpList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
         <button id="presEndBtn" style="margin-top:12px;background:none;border:1px solid #34363E;color:#8B8D96;padding:10px;border-radius:8px;font-family:'Inter',sans-serif;font-weight:600;font-size:12.5px;">End session</button>
       </div>
     `;
 
-    const nowEl = document.getElementById('presNowText');
-    const nextEl = document.getElementById('presNextText');
+    const liveEl = document.getElementById('liveSlideText');
+    const previewEl = document.getElementById('previewSlideText');
     const counterEl = document.getElementById('presCounter');
     const jumpListEl = document.getElementById('presJumpList');
+    const takeBtn = document.getElementById('takeBtn');
 
     function renderJumpList(){
       jumpListEl.innerHTML = slidesArr.map((s, i) => {
@@ -2258,10 +2265,16 @@ Was blind but now I see"></textarea>
             </div>
           `;
         }
+        const isLive = i === liveIndex;
+        const isPreview = i === previewIndex;
+        const border = isLive ? '#E8635E' : (isPreview ? '#E8A33D' : '#34363E');
+        const bg = isLive ? 'rgba(232,99,94,0.1)' : (isPreview ? 'rgba(232,163,61,0.12)' : '#24262C');
+        const color = isLive ? '#e8635e' : (isPreview ? '#E8A33D' : '#F2F2F0');
+        const badge = isLive ? ' ● LIVE' : (isPreview ? ' ◐ PREVIEW' : '');
         return `
           <div style="display:flex;gap:6px;">
-            <button data-jump="${i}" style="flex:1;text-align:left;background:${i === localIndex ? 'rgba(232,163,61,0.12)' : '#24262C'};border:1px solid ${i === localIndex ? '#E8A33D' : '#34363E'};color:${i === localIndex ? '#E8A33D' : '#F2F2F0'};padding:9px 10px;border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;">
-              <span style="font-family:monospace;font-size:10px;opacity:0.6;">${String(i+1).padStart(2,'0')}</span>
+            <button data-jump="${i}" style="flex:1;text-align:left;background:${bg};border:1px solid ${border};color:${color};padding:9px 10px;border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;">
+              <span style="font-family:monospace;font-size:10px;opacity:0.7;">${String(i+1).padStart(2,'0')}${badge}</span>
               ${s.label ? '<span style="font-family:monospace;font-size:10px;opacity:0.6;"> · ' + escapeHtml(s.label.toUpperCase()) + '</span>' : ''}
               <br>${escapeHtml((s.text || '').split(String.fromCharCode(10))[0]).slice(0, 60)}
             </button>
@@ -2273,24 +2286,35 @@ Was blind but now I see"></textarea>
 
     function paintLocal(){
       if(slidesArr.length === 0){
-        nowEl.textContent = 'No slides in this session.';
-        nextEl.textContent = '';
+        liveEl.textContent = 'No slides in this session.';
+        previewEl.textContent = '';
         counterEl.textContent = '';
+        takeBtn.disabled = true;
         return;
       }
-      localIndex = clampIndex(localIndex, slidesArr.length);
-      nowEl.textContent = slidesArr[localIndex].text;
-      nextEl.textContent = localIndex + 1 < slidesArr.length ? slidesArr[localIndex + 1].text : '— end of set —';
-      counterEl.textContent = (localIndex + 1) + ' / ' + slidesArr.length;
+      liveIndex = clampIndex(liveIndex, slidesArr.length);
+      previewIndex = clampIndex(previewIndex, slidesArr.length);
+      liveEl.textContent = slidesArr[liveIndex].text;
+      previewEl.textContent = slidesArr[previewIndex].text;
+      counterEl.textContent = 'Live ' + (liveIndex + 1) + ' / ' + slidesArr.length + '   ·   Preview ' + (previewIndex + 1) + ' / ' + slidesArr.length;
+      const same = liveIndex === previewIndex;
+      takeBtn.disabled = same;
+      takeBtn.style.opacity = same ? '0.4' : '1';
       renderJumpList();
     }
 
-    async function pushIndex(newIndex){
-      newIndex = clampIndex(newIndex, slidesArr.length);
-      localIndex = newIndex;
+    async function movePreview(newIndex){
+      previewIndex = clampIndex(newIndex, slidesArr.length);
       paintLocal();
-      const { error } = await db.from('sessions').update({ current_index: newIndex }).eq('id', sessionId);
-      if(error){ console.error(error); showToastSafe('Could not update — check connection'); }
+      const { error } = await db.from('sessions').update({ preview_index: previewIndex }).eq('id', sessionId);
+      if(error){ console.error(error); showToastSafe('Could not update preview — check connection'); }
+    }
+
+    async function takeLive(){
+      liveIndex = previewIndex;
+      paintLocal();
+      const { error } = await db.from('sessions').update({ current_index: liveIndex, preview_index: liveIndex }).eq('id', sessionId);
+      if(error){ console.error(error); showToastSafe('Could not go live — check connection'); }
     }
 
     async function saveSlideEdit(idx, newText){
@@ -2299,7 +2323,7 @@ Was blind but now I see"></textarea>
       paintLocal();
       const { error } = await db.from('sessions').update({ slides: slidesArr }).eq('id', sessionId);
       if(error){ console.error(error); showToastSafe('Could not save edit — check connection'); }
-      else showToastSafe(idx === localIndex ? 'Updated — now showing on screen' : 'Updated slide ' + (idx + 1));
+      else showToastSafe(idx === liveIndex ? 'Updated — now showing on screen' : 'Updated slide ' + (idx + 1));
     }
 
     function showToastSafe(msg){
@@ -2310,8 +2334,9 @@ Was blind but now I see"></textarea>
       setTimeout(() => t.remove(), 2500);
     }
 
-    document.getElementById('presPrevBtn').addEventListener('click', () => pushIndex(localIndex - 1));
-    document.getElementById('presNextBtn').addEventListener('click', () => pushIndex(localIndex + 1));
+    document.getElementById('presPrevBtn').addEventListener('click', () => movePreview(previewIndex - 1));
+    document.getElementById('presNextBtn').addEventListener('click', () => movePreview(previewIndex + 1));
+    takeBtn.addEventListener('click', takeLive);
     jumpListEl.addEventListener('click', (e) => {
       const saveBtn = e.target.closest('[data-save-edit]');
       const cancelBtn = e.target.closest('[data-cancel-edit]');
@@ -2325,7 +2350,7 @@ Was blind but now I see"></textarea>
       }
       if(cancelBtn){ editingSlideIdx = null; renderJumpList(); return; }
       if(editBtn){ editingSlideIdx = parseInt(editBtn.dataset.edit, 10); renderJumpList(); return; }
-      if(jumpBtn){ pushIndex(parseInt(jumpBtn.dataset.jump, 10)); return; }
+      if(jumpBtn){ movePreview(parseInt(jumpBtn.dataset.jump, 10)); return; }
     });
     document.getElementById('presEndBtn').addEventListener('click', async () => {
       try{
@@ -2342,7 +2367,8 @@ Was blind but now I see"></textarea>
       if(newRow.status === 'ended'){ showRoleEndedScreen('SESSION ENDED'); return; }
       if(editingSlideIdx !== null) return; // don't overwrite text while presenter is mid-edit
       slidesArr = newRow.slides || slidesArr;
-      localIndex = newRow.current_index || 0;
+      liveIndex = newRow.current_index || 0;
+      previewIndex = (newRow.preview_index !== null && newRow.preview_index !== undefined) ? newRow.preview_index : liveIndex;
       paintLocal();
     });
     document.addEventListener('visibilitychange', async () => {
@@ -2351,7 +2377,8 @@ Was blind but now I see"></textarea>
         if(fresh){
           if(fresh.status === 'ended'){ showRoleEndedScreen('SESSION ENDED'); return; }
           slidesArr = fresh.slides || slidesArr;
-          localIndex = fresh.current_index || 0;
+          liveIndex = fresh.current_index || 0;
+          previewIndex = (fresh.preview_index !== null && fresh.preview_index !== undefined) ? fresh.preview_index : liveIndex;
           paintLocal();
         }
       }
