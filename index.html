@@ -2082,6 +2082,253 @@ Was blind but now I see"></textarea>
     });
     startLiveSession(combined, setlistTitleEl.value.trim() || 'Untitled setlist', liveSetlistPanel, goLiveSetlistBtn);
   });
+
+  // ---- Role views: display / presenter / monitor ----
+  // Reached via ?session=ID&role=display|presenter|monitor(&key=CODE for presenter)
+
+  function getRoleParams(){
+    const p = new URLSearchParams(location.search);
+    return { session: p.get('session'), role: p.get('role'), key: p.get('key') };
+  }
+
+  function roleBgStyleTarget(el, bg){
+    bg = bg || { type: 'color', value: '#0A0A0C' };
+    el.className = 'role-bg';
+    el.style.background = '#0A0A0C';
+    el.style.backgroundImage = '';
+    el.style.backgroundSize = '';
+    el.style.backgroundPosition = '';
+    if(bg.type === 'motion'){
+      el.classList.add('bg-' + bg.value);
+    } else if(bg.type === 'image'){
+      el.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.45),rgba(0,0,0,0.45)), url('${bg.value.replace(/'/g,"%27")}')`;
+      el.style.backgroundSize = 'cover';
+      el.style.backgroundPosition = 'center';
+    } else {
+      el.style.background = bg.value;
+    }
+  }
+
+  function clampIndex(i, len){
+    if(len <= 0) return 0;
+    return Math.min(Math.max(i, 0), len - 1);
+  }
+
+  function showRoleEndedScreen(label){
+    document.body.innerHTML = `
+      <div style="position:fixed;inset:0;background:#0A0A0C;display:flex;align-items:center;justify-content:center;text-align:center;padding:8vw;">
+        <div style="font-family:'JetBrains Mono',monospace;color:#8B8D96;font-size:14px;letter-spacing:0.05em;">${label}</div>
+      </div>
+    `;
+  }
+
+  async function fetchSession(sessionId){
+    const { data, error } = await db.from('sessions').select('*').eq('id', sessionId).single();
+    if(error){ console.error(error); return null; }
+    return data;
+  }
+
+  function subscribeSession(sessionId, onChange){
+    return db.channel('session-' + sessionId + '-' + Math.random().toString(36).slice(2))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'sessions', filter: `id=eq.${sessionId}` }, payload => onChange(payload.new))
+      .subscribe();
+  }
+
+  // -- Display role: fullscreen audience view, read-only --
+  function initDisplayRole(sessionId){
+    document.body.innerHTML = `
+      <div id="roleDisplay" class="role-bg" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:6vw;">
+        <span id="roleDisplayCounter" style="position:absolute;top:22px;left:20px;font-family:'JetBrains Mono',monospace;font-size:12px;color:rgba(255,255,255,0.4);letter-spacing:0.05em;"></span>
+        <div id="roleDisplayText" style="font-family:'Inter',sans-serif;font-weight:700;color:#fff;font-size:clamp(28px,6vw,64px);line-height:1.4;white-space:pre-line;text-shadow:0 4px 18px rgba(0,0,0,0.6);position:relative;z-index:2;"></div>
+      </div>
+    `;
+    const view = document.getElementById('roleDisplay');
+    const textEl = document.getElementById('roleDisplayText');
+    const counterEl = document.getElementById('roleDisplayCounter');
+
+    function paint(row){
+      if(!row) return;
+      if(row.status === 'ended'){ showRoleEndedScreen('SESSION ENDED'); return; }
+      const arr = row.slides || [];
+      if(arr.length === 0){ textEl.textContent = ''; counterEl.textContent = 'Waiting for slides…'; return; }
+      const idx = clampIndex(row.current_index || 0, arr.length);
+      const s = arr[idx];
+      roleBgStyleTarget(view, s.background);
+      textEl.textContent = s.text;
+      const parts = [];
+      if(s.songTitle) parts.push(s.songTitle);
+      if(s.label) parts.push(s.label.toUpperCase());
+      parts.push((idx + 1) + ' / ' + arr.length);
+      counterEl.textContent = parts.join(' · ');
+    }
+
+    async function refresh(){ paint(await fetchSession(sessionId)); }
+    refresh();
+    subscribeSession(sessionId, paint);
+    document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') refresh(); });
+  }
+
+  // -- Monitor role: confidence monitor, current + next line, no background --
+  function initMonitorRole(sessionId){
+    document.body.innerHTML = `
+      <div style="position:fixed;inset:0;background:#0A0A0C;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:8vw;gap:28px;">
+        <span id="roleMonCounter" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#6b5427;letter-spacing:0.08em;"></span>
+        <div id="roleMonCurrent" style="font-family:'Inter',sans-serif;font-weight:700;color:#fff;font-size:clamp(24px,5.5vw,48px);line-height:1.4;white-space:pre-line;"></div>
+        <div id="roleMonNext" style="font-family:'Inter',sans-serif;font-weight:600;color:#5a5c66;font-size:clamp(15px,3vw,24px);line-height:1.4;white-space:pre-line;"></div>
+      </div>
+    `;
+    const curEl = document.getElementById('roleMonCurrent');
+    const nextEl = document.getElementById('roleMonNext');
+    const counterEl = document.getElementById('roleMonCounter');
+
+    function paint(row){
+      if(!row) return;
+      if(row.status === 'ended'){ showRoleEndedScreen('SESSION ENDED'); return; }
+      const arr = row.slides || [];
+      if(arr.length === 0){ curEl.textContent = ''; nextEl.textContent = ''; counterEl.textContent = 'Waiting for slides…'; return; }
+      const idx = clampIndex(row.current_index || 0, arr.length);
+      curEl.textContent = arr[idx].text;
+      nextEl.textContent = idx + 1 < arr.length ? ('NEXT · ' + arr[idx + 1].text) : 'END OF SET';
+      const parts = [];
+      if(arr[idx].songTitle) parts.push(arr[idx].songTitle.toUpperCase());
+      parts.push((idx + 1) + ' / ' + arr.length);
+      counterEl.textContent = parts.join(' · ');
+    }
+
+    async function refresh(){ paint(await fetchSession(sessionId)); }
+    refresh();
+    subscribeSession(sessionId, paint);
+    document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') refresh(); });
+  }
+
+  // -- Presenter role: controls current_index remotely, requires matching key --
+  async function initPresenterRole(sessionId, key){
+    document.body.innerHTML = `
+      <div style="position:fixed;inset:0;background:#1B1D22;display:flex;align-items:center;justify-content:center;color:#8B8D96;font-family:'JetBrains Mono',monospace;font-size:13px;">Loading session…</div>
+    `;
+    const row = await fetchSession(sessionId);
+    if(!row){ showRoleEndedScreen('SESSION NOT FOUND'); return; }
+    if(row.presenter_code !== key){ showRoleEndedScreen('INVALID PRESENTER LINK'); return; }
+    if(row.status === 'ended'){ showRoleEndedScreen('SESSION ENDED'); return; }
+
+    let localIndex = row.current_index || 0;
+    let slidesArr = row.slides || [];
+
+    document.body.innerHTML = `
+      <div style="position:fixed;inset:0;background:#1B1D22;display:flex;flex-direction:column;padding:16px;box-sizing:border-box;font-family:'Inter',sans-serif;color:#F2F2F0;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8B8D96;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">${escapeHtml(row.title || 'Live session')} · PRESENTER</div>
+        <div style="background:#0A0A0C;border:1px solid #34363E;border-radius:10px;padding:16px;margin-bottom:10px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#6b5427;margin-bottom:6px;">NOW</div>
+          <div id="presNowText" style="font-weight:700;font-size:17px;line-height:1.4;white-space:pre-line;"></div>
+        </div>
+        <div style="background:#24262C;border:1px solid #34363E;border-radius:10px;padding:14px;margin-bottom:14px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#6b5427;margin-bottom:6px;">NEXT</div>
+          <div id="presNextText" style="font-weight:600;font-size:14px;color:#8B8D96;line-height:1.4;white-space:pre-line;"></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-bottom:12px;">
+          <button id="presPrevBtn" style="flex:1;background:#2C2E36;border:1px solid #34363E;color:#F2F2F0;padding:16px;border-radius:9px;font-family:'Archivo Black',sans-serif;font-size:14px;">◀ PREV</button>
+          <button id="presNextBtn" style="flex:1;background:linear-gradient(135deg,#F2B65D,#E8A33D);border:none;color:#1B1D22;padding:16px;border-radius:9px;font-family:'Archivo Black',sans-serif;font-size:14px;">NEXT ▶</button>
+        </div>
+        <div id="presCounter" style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;color:#8B8D96;margin-bottom:12px;"></div>
+        <label style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#8B8D96;margin-bottom:6px;">Jump to slide</label>
+        <div id="presJumpList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
+        <button id="presEndBtn" style="margin-top:12px;background:none;border:1px solid #34363E;color:#8B8D96;padding:10px;border-radius:8px;font-family:'Inter',sans-serif;font-weight:600;font-size:12.5px;">End session</button>
+      </div>
+    `;
+
+    const nowEl = document.getElementById('presNowText');
+    const nextEl = document.getElementById('presNextText');
+    const counterEl = document.getElementById('presCounter');
+    const jumpListEl = document.getElementById('presJumpList');
+
+    function renderJumpList(){
+      jumpListEl.innerHTML = slidesArr.map((s, i) => `
+        <button data-jump="${i}" style="text-align:left;background:${i === localIndex ? 'rgba(232,163,61,0.12)' : '#24262C'};border:1px solid ${i === localIndex ? '#E8A33D' : '#34363E'};color:${i === localIndex ? '#E8A33D' : '#F2F2F0'};padding:9px 10px;border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.6;">${String(i+1).padStart(2,'0')}</span>
+          ${s.label ? '<span style="font-family:monospace;font-size:10px;opacity:0.6;"> · ' + escapeHtml(s.label.toUpperCase()) + '</span>' : ''}
+          <br>${escapeHtml((s.text || '').split('\\n')[0]).slice(0, 60)}
+        </button>
+      `).join('');
+    }
+
+    function paintLocal(){
+      if(slidesArr.length === 0){
+        nowEl.textContent = 'No slides in this session.';
+        nextEl.textContent = '';
+        counterEl.textContent = '';
+        return;
+      }
+      localIndex = clampIndex(localIndex, slidesArr.length);
+      nowEl.textContent = slidesArr[localIndex].text;
+      nextEl.textContent = localIndex + 1 < slidesArr.length ? slidesArr[localIndex + 1].text : '— end of set —';
+      counterEl.textContent = (localIndex + 1) + ' / ' + slidesArr.length;
+      renderJumpList();
+    }
+
+    async function pushIndex(newIndex){
+      newIndex = clampIndex(newIndex, slidesArr.length);
+      localIndex = newIndex;
+      paintLocal();
+      const { error } = await db.from('sessions').update({ current_index: newIndex }).eq('id', sessionId);
+      if(error){ console.error(error); showToastSafe('Could not update — check connection'); }
+    }
+
+    function showToastSafe(msg){
+      const t = document.createElement('div');
+      t.textContent = msg;
+      t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#E8A33D;color:#1B1D22;padding:10px 18px;border-radius:14px;font-family:Inter,sans-serif;font-weight:700;font-size:13px;z-index:999;';
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 2500);
+    }
+
+    document.getElementById('presPrevBtn').addEventListener('click', () => pushIndex(localIndex - 1));
+    document.getElementById('presNextBtn').addEventListener('click', () => pushIndex(localIndex + 1));
+    jumpListEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-jump]');
+      if(!btn) return;
+      pushIndex(parseInt(btn.dataset.jump, 10));
+    });
+    document.getElementById('presEndBtn').addEventListener('click', async () => {
+      try{
+        const { error } = await db.from('sessions').update({ status: 'ended' }).eq('id', sessionId);
+        if(error) throw error;
+        showRoleEndedScreen('SESSION ENDED');
+      }catch(e){
+        console.error(e);
+        showToastSafe('Could not end session');
+      }
+    });
+
+    subscribeSession(sessionId, (newRow) => {
+      if(newRow.status === 'ended'){ showRoleEndedScreen('SESSION ENDED'); return; }
+      slidesArr = newRow.slides || slidesArr;
+      localIndex = newRow.current_index || 0;
+      paintLocal();
+    });
+    document.addEventListener('visibilitychange', async () => {
+      if(document.visibilityState === 'visible'){
+        const fresh = await fetchSession(sessionId);
+        if(fresh){
+          if(fresh.status === 'ended'){ showRoleEndedScreen('SESSION ENDED'); return; }
+          slidesArr = fresh.slides || slidesArr;
+          localIndex = fresh.current_index || 0;
+          paintLocal();
+        }
+      }
+    });
+
+    paintLocal();
+  }
+
+  // Entry point: branch into a role view if URL params are present
+  (function bootRoleRouting(){
+    const { session, role, key } = getRoleParams();
+    if(!session || !role) return; // normal app mode — do nothing further
+    if(role === 'display') initDisplayRole(session);
+    else if(role === 'monitor') initMonitorRole(session);
+    else if(role === 'presenter') initPresenterRole(session, key);
+    else showRoleEndedScreen('UNKNOWN ROLE');
+  })();
 </script>
 
 </body>
