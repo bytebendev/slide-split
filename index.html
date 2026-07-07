@@ -2166,6 +2166,7 @@ Was blind but now I see"></textarea>
     refresh();
     subscribeSession(sessionId, paint);
     document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') refresh(); });
+    setInterval(refresh, 5000); // safety net if a realtime push is missed
   }
 
   // -- Monitor role: confidence monitor, current + next line, no background --
@@ -2199,6 +2200,7 @@ Was blind but now I see"></textarea>
     refresh();
     subscribeSession(sessionId, paint);
     document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') refresh(); });
+    setInterval(refresh, 5000); // safety net if a realtime push is missed
   }
 
   // -- Presenter role: controls current_index remotely, requires matching key --
@@ -2213,6 +2215,7 @@ Was blind but now I see"></textarea>
 
     let localIndex = row.current_index || 0;
     let slidesArr = row.slides || [];
+    let editingSlideIdx = null;
 
     document.body.innerHTML = `
       <div style="position:fixed;inset:0;background:#1B1D22;display:flex;flex-direction:column;padding:16px;box-sizing:border-box;font-family:'Inter',sans-serif;color:#F2F2F0;">
@@ -2242,13 +2245,30 @@ Was blind but now I see"></textarea>
     const jumpListEl = document.getElementById('presJumpList');
 
     function renderJumpList(){
-      jumpListEl.innerHTML = slidesArr.map((s, i) => `
-        <button data-jump="${i}" style="text-align:left;background:${i === localIndex ? 'rgba(232,163,61,0.12)' : '#24262C'};border:1px solid ${i === localIndex ? '#E8A33D' : '#34363E'};color:${i === localIndex ? '#E8A33D' : '#F2F2F0'};padding:9px 10px;border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;">
-          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.6;">${String(i+1).padStart(2,'0')}</span>
-          ${s.label ? '<span style="font-family:monospace;font-size:10px;opacity:0.6;"> · ' + escapeHtml(s.label.toUpperCase()) + '</span>' : ''}
-          <br>${escapeHtml((s.text || '').split('\\n')[0]).slice(0, 60)}
-        </button>
-      `).join('');
+      jumpListEl.innerHTML = slidesArr.map((s, i) => {
+        if(editingSlideIdx === i){
+          return `
+            <div style="background:#24262C;border:1px solid #E8A33D;border-radius:7px;padding:8px;">
+              <div style="font-family:monospace;font-size:10px;color:#6b5427;margin-bottom:5px;">EDITING SLIDE ${i+1} — updates the projection only, doesn't touch your saved song</div>
+              <textarea id="editSlideTextarea" style="width:100%;min-height:70px;background:#0A0A0C;color:#F2F2F0;border:1px solid #34363E;border-radius:6px;padding:8px;font-family:'Inter',sans-serif;font-size:13px;box-sizing:border-box;resize:vertical;">${escapeHtml(s.text)}</textarea>
+              <div style="display:flex;gap:6px;margin-top:6px;">
+                <button data-save-edit="${i}" style="flex:1;background:linear-gradient(135deg,#F2B65D,#E8A33D);border:none;color:#1B1D22;padding:8px;border-radius:6px;font-family:'Inter',sans-serif;font-weight:700;font-size:12px;">Save</button>
+                <button data-cancel-edit="1" style="flex:1;background:none;border:1px solid #34363E;color:#8B8D96;padding:8px;border-radius:6px;font-family:'Inter',sans-serif;font-size:12px;">Cancel</button>
+              </div>
+            </div>
+          `;
+        }
+        return `
+          <div style="display:flex;gap:6px;">
+            <button data-jump="${i}" style="flex:1;text-align:left;background:${i === localIndex ? 'rgba(232,163,61,0.12)' : '#24262C'};border:1px solid ${i === localIndex ? '#E8A33D' : '#34363E'};color:${i === localIndex ? '#E8A33D' : '#F2F2F0'};padding:9px 10px;border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;">
+              <span style="font-family:monospace;font-size:10px;opacity:0.6;">${String(i+1).padStart(2,'0')}</span>
+              ${s.label ? '<span style="font-family:monospace;font-size:10px;opacity:0.6;"> · ' + escapeHtml(s.label.toUpperCase()) + '</span>' : ''}
+              <br>${escapeHtml((s.text || '').split(String.fromCharCode(10))[0]).slice(0, 60)}
+            </button>
+            <button data-edit="${i}" style="flex:0 0 auto;width:38px;background:#2C2E36;border:1px solid #34363E;color:#8B8D96;border-radius:7px;font-size:14px;">✎</button>
+          </div>
+        `;
+      }).join('');
     }
 
     function paintLocal(){
@@ -2273,6 +2293,15 @@ Was blind but now I see"></textarea>
       if(error){ console.error(error); showToastSafe('Could not update — check connection'); }
     }
 
+    async function saveSlideEdit(idx, newText){
+      slidesArr[idx] = { ...slidesArr[idx], text: newText };
+      editingSlideIdx = null;
+      paintLocal();
+      const { error } = await db.from('sessions').update({ slides: slidesArr }).eq('id', sessionId);
+      if(error){ console.error(error); showToastSafe('Could not save edit — check connection'); }
+      else showToastSafe(idx === localIndex ? 'Updated — now showing on screen' : 'Updated slide ' + (idx + 1));
+    }
+
     function showToastSafe(msg){
       const t = document.createElement('div');
       t.textContent = msg;
@@ -2284,9 +2313,19 @@ Was blind but now I see"></textarea>
     document.getElementById('presPrevBtn').addEventListener('click', () => pushIndex(localIndex - 1));
     document.getElementById('presNextBtn').addEventListener('click', () => pushIndex(localIndex + 1));
     jumpListEl.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-jump]');
-      if(!btn) return;
-      pushIndex(parseInt(btn.dataset.jump, 10));
+      const saveBtn = e.target.closest('[data-save-edit]');
+      const cancelBtn = e.target.closest('[data-cancel-edit]');
+      const editBtn = e.target.closest('[data-edit]');
+      const jumpBtn = e.target.closest('[data-jump]');
+      if(saveBtn){
+        const idx = parseInt(saveBtn.dataset.saveEdit, 10);
+        const ta = document.getElementById('editSlideTextarea');
+        saveSlideEdit(idx, ta.value);
+        return;
+      }
+      if(cancelBtn){ editingSlideIdx = null; renderJumpList(); return; }
+      if(editBtn){ editingSlideIdx = parseInt(editBtn.dataset.edit, 10); renderJumpList(); return; }
+      if(jumpBtn){ pushIndex(parseInt(jumpBtn.dataset.jump, 10)); return; }
     });
     document.getElementById('presEndBtn').addEventListener('click', async () => {
       try{
@@ -2301,6 +2340,7 @@ Was blind but now I see"></textarea>
 
     subscribeSession(sessionId, (newRow) => {
       if(newRow.status === 'ended'){ showRoleEndedScreen('SESSION ENDED'); return; }
+      if(editingSlideIdx !== null) return; // don't overwrite text while presenter is mid-edit
       slidesArr = newRow.slides || slidesArr;
       localIndex = newRow.current_index || 0;
       paintLocal();
