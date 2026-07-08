@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Slide Split — Lyrics to Slides</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 <style>
@@ -813,18 +813,14 @@ Was blind but now I see"></textarea>
       <button class="bg-swatch bg-motion-2" data-bg-type="motion" data-bg-value="motion-2" aria-label="Blue-violet drift"></button>
       <button class="bg-swatch bg-motion-3" data-bg-type="motion" data-bg-value="motion-3" aria-label="Slow pulse"></button>
     </div>
-    <div class="field-row" style="margin-top:8px; align-items:flex-end;">
-  <div class="field">
-    <input type="file" id="bgImageFile" accept="image/*">
-  </div>
-  <button class="save-btn" id="applyBgImageBtn" style="flex:0 0 auto; padding:10px 16px;">
-    Apply
-  </button>
-</div>
+    <div class="field-row" style="margin-top:8px; align-items: flex-end;">
+      <div class="field">
+        <input type="text" id="bgImageUrl" placeholder="Or paste a direct image URL (ends in .jpg/.png)…">
+      </div>
+      <button class="save-btn" id="applyBgImageBtn" style="flex: 0 0 auto; padding: 10px 16px;">Apply</button>
+    </div>
+    <p id="bgImageStatus" style="display:none; font-family:'JetBrains Mono',monospace; font-size:11px; color: var(--muted); margin: 0 0 8px;"></p>
 
-<p id="bgImageStatus"
-   style="display:none; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); margin:0 0 8px;">
-</p>
     <button class="go-btn" id="splitBtn">Split into slides</button>
     <div class="save-row">
       <button class="save-btn" id="saveBtn">Save song</button>
@@ -1045,49 +1041,36 @@ Was blind but now I see"></textarea>
     });
   });
 
-  const bgImageFileEl = document.getElementById('bgImageFile');
-const applyBgImageBtn = document.getElementById('applyBgImageBtn');
-const bgImageStatus = document.getElementById('bgImageStatus');
+  const applyBgImageBtn = document.getElementById('applyBgImageBtn');
+  const bgImageStatus = document.getElementById('bgImageStatus');
 
-function tryApplyBgImage() {
-  const file = bgImageFileEl.files[0];
-
-  if (!file) {
-    showToast('Please choose an image first');
-    return;
+  function tryApplyBgImage(){
+    const url = bgImageUrlEl.value.trim();
+    if(!url){
+      showToast('Paste an image URL first');
+      return;
+    }
+    bgImageStatus.style.display = 'block';
+    bgImageStatus.textContent = 'Checking image…';
+    const img = new Image();
+    img.onload = () => {
+      bgSwatches.forEach(b => b.classList.remove('active'));
+      background = { type: 'image', value: url };
+      bgImageStatus.textContent = 'Applied ✓';
+      if(slides.length) render();
+      showToast('Background image applied');
+    };
+    img.onerror = () => {
+      bgImageStatus.textContent = "Couldn't load that image — many sites (Google Images, Instagram, Pinterest) block direct linking. Try a URL that ends in .jpg/.png, or a hosting site like Imgur.";
+    };
+    img.src = url;
   }
 
-  bgImageStatus.style.display = 'block';
-  bgImageStatus.textContent = 'Loading image...';
+  applyBgImageBtn.addEventListener('click', tryApplyBgImage);
+  bgImageUrlEl.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter') tryApplyBgImage();
+  });
 
-  const reader = new FileReader();
-
-  reader.onload = function(e) {
-    const imageData = e.target.result;
-
-    bgSwatches.forEach(b => b.classList.remove('active'));
-
-    background = {
-      type: 'image',
-      value: imageData
-    };
-
-    bgImageStatus.textContent = 'Applied ✓';
-
-    if (slides.length) render();
-
-    showToast('Background image applied');
-  };
-
-  reader.onerror = function() {
-    bgImageStatus.textContent = 'Unable to read the selected image.';
-  };
-
-  reader.readAsDataURL(file);
-}
-
-applyBgImageBtn.addEventListener('click', tryApplyBgImage);
-  
   function applyFormat(str, fmtOverride){
     const f = fmtOverride || format;
     if(f === 'upper') return str.toUpperCase();
@@ -2151,6 +2134,26 @@ applyBgImageBtn.addEventListener('click', tryApplyBgImage);
       .subscribe();
   }
 
+  // Base clamp() values for Display text at scale=1
+  const DISPLAY_FONT_BASE = { min: 28, pref: 6, max: 64 }; // px, vw, px
+  const DISPLAY_FONT_OPTIONS = {
+    'inter-bold':    { family: "'Inter', sans-serif",        weight: 700 },
+    'inter-black':   { family: "'Inter', sans-serif",        weight: 900 },
+    'archivo-black': { family: "'Archivo Black', sans-serif", weight: 400 }
+  };
+  function applyDisplayTextStyle(el, settings){
+    const s = settings || {};
+    const scale = s.scale || 1;
+    const fontKey = DISPLAY_FONT_OPTIONS[s.font] ? s.font : 'inter-bold';
+    const f = DISPLAY_FONT_OPTIONS[fontKey];
+    const min = Math.round(DISPLAY_FONT_BASE.min * scale);
+    const pref = (DISPLAY_FONT_BASE.pref * scale).toFixed(2);
+    const max = Math.round(DISPLAY_FONT_BASE.max * scale);
+    el.style.fontFamily = f.family;
+    el.style.fontWeight = f.weight;
+    el.style.fontSize = `clamp(${min}px, ${pref}vw, ${max}px)`;
+  }
+
   // -- Display role: fullscreen audience view, read-only --
   function initDisplayRole(sessionId){
     document.body.innerHTML = `
@@ -2167,6 +2170,7 @@ applyBgImageBtn.addEventListener('click', tryApplyBgImage);
       if(!row) return;
       if(row.status === 'ended'){ showRoleEndedScreen('SESSION ENDED'); return; }
       const arr = row.slides || [];
+      applyDisplayTextStyle(textEl, row.display_settings);
       if(arr.length === 0){ textEl.textContent = ''; counterEl.textContent = 'Waiting for slides…'; return; }
       const idx = clampIndex(row.current_index || 0, arr.length);
       const s = arr[idx];
@@ -2234,36 +2238,23 @@ applyBgImageBtn.addEventListener('click', tryApplyBgImage);
     let previewIndex = (row.preview_index !== null && row.preview_index !== undefined) ? row.preview_index : liveIndex;
     let slidesArr = row.slides || [];
     let editingSlideIdx = null;
-    let librarySongs = [];
-
-    try{
-      const { data: songRows, error: songErr } = await db.from('songs').select('*').order('created_at', { ascending: false });
-      if(!songErr) librarySongs = (songRows || []).map(r => ({
-        id: r.id, title: r.title, artist: r.artist, lyrics: r.lyrics,
-        mode: r.mode || 'blank', lineCount: r.line_count || 2, format: r.format || 'none',
-        tags: normalizeTags(r.tags), background: r.background || { type: 'color', value: '#0A0A0C' }
-      }));
-    }catch(e){ console.error(e); }
 
     document.body.innerHTML = `
-      <div style="position:fixed;inset:0;background:#1B1D22;display:flex;flex-direction:column;padding:16px;box-sizing:border-box;font-family:'Inter',sans-serif;color:#F2F2F0;overflow-y:auto;">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8B8D96;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">${escapeHtml(row.title || 'Live session')} · OPERATOR</div>
+      <div style="position:fixed;inset:0;background:#1B1D22;display:flex;flex-direction:column;padding:16px;box-sizing:border-box;font-family:'Inter',sans-serif;color:#F2F2F0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8B8D96;letter-spacing:0.08em;text-transform:uppercase;">${escapeHtml(row.title || 'Live session')} · OPERATOR</div>
+          <div style="display:flex;gap:6px;flex-shrink:0;">
+            <button id="textSettingsToggleBtn" style="background:#2C2E36;border:1px solid #4a90d9;color:#8fc0f0;padding:7px 10px;border-radius:7px;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:0.05em;">🔠 TEXT</button>
+            <button id="libraryToggleBtn" style="background:#2C2E36;border:1px solid #8b6fd1;color:#b09ce8;padding:7px 10px;border-radius:7px;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:0.05em;">📚 LIBRARY</button>
+          </div>
+        </div>
 
-        <button id="toggleAddPanelBtn" style="width:100%;background:#2C2E36;border:1px dashed #34363E;color:#8B8D96;padding:10px;border-radius:8px;font-family:'Inter',sans-serif;font-weight:600;font-size:12.5px;margin-bottom:10px;">+ Insert a song (won't touch what's live)</button>
-        <div id="addSongPanel" style="display:none;background:#24262C;border:1px solid #34363E;border-radius:10px;padding:12px;margin-bottom:12px;">
-          <div style="display:flex;gap:6px;margin-bottom:10px;">
-            <button id="addTabLibrary" style="flex:1;background:rgba(232,163,61,0.12);border:1px solid #E8A33D;color:#E8A33D;padding:8px;border-radius:7px;font-family:'JetBrains Mono',monospace;font-size:11px;">FROM LIBRARY</button>
-            <button id="addTabNew" style="flex:1;background:#2C2E36;border:1px solid #34363E;color:#8B8D96;padding:8px;border-radius:7px;font-family:'JetBrains Mono',monospace;font-size:11px;">PASTE NEW</button>
-          </div>
-          <div id="addLibraryView">
-            <input type="text" id="addSongSearch" placeholder="Search your songs…" style="width:100%;box-sizing:border-box;background:#0A0A0C;color:#F2F2F0;border:1px solid #34363E;border-radius:8px;padding:9px 10px;font-family:'Inter',sans-serif;font-size:13px;margin-bottom:8px;">
-            <div id="addSongResults" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;"></div>
-          </div>
-          <div id="addNewView" style="display:none;">
-            <input type="text" id="addNewTitle" placeholder="Title (optional)" style="width:100%;box-sizing:border-box;background:#0A0A0C;color:#F2F2F0;border:1px solid #34363E;border-radius:8px;padding:9px 10px;font-family:'Inter',sans-serif;font-size:13px;margin-bottom:8px;">
-            <textarea id="addNewLyrics" placeholder="Paste lyrics — splits on blank lines" style="width:100%;min-height:90px;box-sizing:border-box;background:#0A0A0C;color:#F2F2F0;border:1px solid #34363E;border-radius:8px;padding:9px 10px;font-family:'Inter',sans-serif;font-size:13px;resize:vertical;margin-bottom:8px;"></textarea>
-            <button id="addNewGoBtn" style="width:100%;background:linear-gradient(135deg,#F2B65D,#E8A33D);border:none;color:#1B1D22;padding:10px;border-radius:7px;font-family:'Inter',sans-serif;font-weight:700;font-size:13px;">Insert after Live</button>
-          </div>
+        <div id="textSettingsPanel" style="display:none;background:#24262C;border:1px solid #4a90d9;border-radius:10px;padding:12px;margin-bottom:10px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#8fc0f0;letter-spacing:0.08em;margin-bottom:8px;">DISPLAY TEXT — changes the congregation's screen live</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;color:#8B8D96;margin-bottom:6px;">SIZE</div>
+          <div id="sizeBtnRow" style="display:flex;gap:6px;margin-bottom:10px;"></div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;color:#8B8D96;margin-bottom:6px;">WEIGHT</div>
+          <div id="fontBtnRow" style="display:flex;gap:6px;"></div>
         </div>
 
         <div style="background:#0A0A0C;border:2px solid #E8635E;border-radius:10px;padding:14px;margin-bottom:8px;">
@@ -2283,16 +2274,30 @@ applyBgImageBtn.addEventListener('click', tryApplyBgImage);
           <button id="presNextBtn" style="flex:1;background:#2C2E36;border:1px solid #34363E;color:#F2F2F0;padding:13px;border-radius:9px;font-family:'Inter',sans-serif;font-weight:700;font-size:13px;">Preview next ▶</button>
         </div>
         <div id="presCounter" style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:11px;color:#8B8D96;margin-bottom:12px;"></div>
-
-        <button id="addSongToggleBtn" style="width:100%;background:#2C2E36;border:1px solid #34363E;color:#E8A33D;padding:11px;border-radius:8px;font-family:'Inter',sans-serif;font-weight:700;font-size:12.5px;margin-bottom:10px;">+ Add song from library</button>
-        <div id="addSongDrawer" style="display:none;margin-bottom:14px;">
-          <input id="addSongSearch" type="text" placeholder="Search your library…" style="width:100%;background:#0A0A0C;color:#F2F2F0;border:1px solid #34363E;border-radius:8px;padding:10px 12px;font-family:'Inter',sans-serif;font-size:13px;margin-bottom:8px;box-sizing:border-box;">
-          <div id="addSongResults"></div>
-        </div>
-
         <label style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#8B8D96;margin-bottom:6px;">Tap a slide to stage it in Preview</label>
-        <div id="presJumpList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;min-height:120px;"></div>
+        <div id="presJumpList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
         <button id="presEndBtn" style="margin-top:12px;background:none;border:1px solid #34363E;color:#8B8D96;padding:10px;border-radius:8px;font-family:'Inter',sans-serif;font-weight:600;font-size:12.5px;">End session</button>
+      </div>
+
+      <div id="libraryOverlay" style="display:none;position:fixed;inset:0;background:rgba(10,10,12,0.85);z-index:200;flex-direction:column;padding:16px;box-sizing:border-box;">
+        <div style="background:#1B1D22;border:1px solid #34363E;border-radius:12px;flex:1;display:flex;flex-direction:column;overflow:hidden;padding:16px;box-sizing:border-box;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <div style="font-family:'Archivo Black',sans-serif;font-size:14px;color:#F2F2F0;">Insert a song</div>
+            <button id="libraryCloseBtn" style="background:none;border:1px solid #34363E;color:#8B8D96;width:32px;height:32px;border-radius:50%;font-size:14px;">✕</button>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#6b5427;margin-bottom:10px;line-height:1.5;">Loading a song here stages it into PREVIEW only — the congregation's screen won't change until you hit TAKE.</div>
+          <input type="text" id="libSearchInput" placeholder="Search library…" style="width:100%;background:#0A0A0C;border:1px solid #34363E;color:#F2F2F0;border-radius:8px;padding:10px 12px;font-family:'Inter',sans-serif;font-size:14px;margin-bottom:10px;box-sizing:border-box;">
+          <div id="libResultsList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:10px;"></div>
+
+          <div id="quickAddBox" style="border-top:1px solid #34363E;padding-top:12px;">
+            <button id="quickAddToggleBtn" style="width:100%;background:#2C2E36;border:1px dashed #8b6fd1;color:#b09ce8;padding:10px;border-radius:8px;font-family:'Inter',sans-serif;font-weight:600;font-size:12.5px;">＋ Add a new song not yet in the library</button>
+            <div id="quickAddForm" style="display:none;margin-top:10px;">
+              <input type="text" id="qaTitle" placeholder="Title" style="width:100%;background:#0A0A0C;border:1px solid #34363E;color:#F2F2F0;border-radius:8px;padding:9px 11px;font-family:'Inter',sans-serif;font-size:13.5px;margin-bottom:8px;box-sizing:border-box;">
+              <textarea id="qaLyrics" placeholder="Paste lyrics (splits on blank lines)" style="width:100%;min-height:100px;background:#0A0A0C;border:1px solid #34363E;color:#F2F2F0;border-radius:8px;padding:9px 11px;font-family:'Inter',sans-serif;font-size:13.5px;box-sizing:border-box;resize:vertical;"></textarea>
+              <button id="qaSaveBtn" style="width:100%;margin-top:8px;background:linear-gradient(135deg,#F2B65D,#E8A33D);border:none;color:#1B1D22;padding:11px;border-radius:8px;font-family:'Archivo Black',sans-serif;font-size:13px;">Save & Stage in Preview</button>
+            </div>
+          </div>
+        </div>
       </div>
     `;
 
@@ -2301,22 +2306,6 @@ applyBgImageBtn.addEventListener('click', tryApplyBgImage);
     const counterEl = document.getElementById('presCounter');
     const jumpListEl = document.getElementById('presJumpList');
     const takeBtn = document.getElementById('takeBtn');
-    const toggleAddPanelBtn = document.getElementById('toggleAddPanelBtn');
-    const addSongPanel = document.getElementById('addSongPanel');
-    const addTabLibrary = document.getElementById('addTabLibrary');
-    const addTabNew = document.getElementById('addTabNew');
-    const addLibraryView = document.getElementById('addLibraryView');
-    const addNewView = document.getElementById('addNewView');
-    const addSongSearch = document.getElementById('addSongSearch');
-    const addSongResults = document.getElementById('addSongResults');
-    const addNewTitle = document.getElementById('addNewTitle');
-    const addNewLyrics = document.getElementById('addNewLyrics');
-    const addNewGoBtn = document.getElementById('addNewGoBtn');
-    let libraryCache = null;
-    const addSongToggleBtn = document.getElementById('addSongToggleBtn');
-    const addSongDrawer = document.getElementById('addSongDrawer');
-    const addSongSearchEl = document.getElementById('addSongSearch');
-    const addSongResultsEl = document.getElementById('addSongResults');
 
     function renderJumpList(){
       jumpListEl.innerHTML = slidesArr.map((s, i) => {
@@ -2334,18 +2323,21 @@ applyBgImageBtn.addEventListener('click', tryApplyBgImage);
         }
         const isLive = i === liveIndex;
         const isPreview = i === previewIndex;
-        const border = isLive ? '#E8635E' : (isPreview ? '#E8A33D' : '#34363E');
-        const bg = isLive ? 'rgba(232,99,94,0.1)' : (isPreview ? 'rgba(232,163,61,0.12)' : '#24262C');
-        const color = isLive ? '#e8635e' : (isPreview ? '#E8A33D' : '#F2F2F0');
-        const badge = isLive ? ' ● LIVE' : (isPreview ? ' ◐ PREVIEW' : '');
+        const isAdhoc = !!s.adhoc;
+        const border = isLive ? '#E8635E' : (isPreview ? '#E8A33D' : (isAdhoc ? '#8b6fd1' : '#34363E'));
+        const bg = isLive ? 'rgba(232,99,94,0.1)' : (isPreview ? 'rgba(232,163,61,0.12)' : (isAdhoc ? 'rgba(139,111,209,0.1)' : '#24262C'));
+        const color = isLive ? '#e8635e' : (isPreview ? '#E8A33D' : (isAdhoc ? '#b09ce8' : '#F2F2F0'));
+        const badge = (isLive ? ' ● LIVE' : (isPreview ? ' ◐ PREVIEW' : '')) + (isAdhoc ? ' ✚ INSERTED' : '');
         return `
           <div style="display:flex;gap:6px;">
             <button data-jump="${i}" style="flex:1;text-align:left;background:${bg};border:1px solid ${border};color:${color};padding:9px 10px;border-radius:7px;font-family:'Inter',sans-serif;font-size:12.5px;">
               <span style="font-family:monospace;font-size:10px;opacity:0.7;">${String(i+1).padStart(2,'0')}${badge}</span>
+              ${s.songTitle ? '<span style="font-family:monospace;font-size:10px;opacity:0.6;"> · ' + escapeHtml(s.songTitle.toUpperCase()) + '</span>' : ''}
               ${s.label ? '<span style="font-family:monospace;font-size:10px;opacity:0.6;"> · ' + escapeHtml(s.label.toUpperCase()) + '</span>' : ''}
               <br>${escapeHtml((s.text || '').split(String.fromCharCode(10))[0]).slice(0, 60)}
             </button>
             <button data-edit="${i}" style="flex:0 0 auto;width:38px;background:#2C2E36;border:1px solid #34363E;color:#8B8D96;border-radius:7px;font-size:14px;">✎</button>
+            ${isAdhoc && !isLive ? `<button data-remove-adhoc="${s.adhocBatch}" style="flex:0 0 auto;width:38px;background:#2C2E36;border:1px solid #34363E;color:#8B8D96;border-radius:7px;font-size:14px;">🗑</button>` : ''}
           </div>
         `;
       }).join('');
@@ -2401,100 +2393,193 @@ applyBgImageBtn.addEventListener('click', tryApplyBgImage);
       setTimeout(() => t.remove(), 2500);
     }
 
-    async function insertItemsAfterLive(newItems, label){
-      if(!newItems || newItems.length === 0){
-        showToastSafe('Nothing to insert');
-        return;
-      }
+    // -- Library browse / quick-add / ad-hoc insert --
+    const libraryOverlay = document.getElementById('libraryOverlay');
+    const libResultsList = document.getElementById('libResultsList');
+    const libSearchInput = document.getElementById('libSearchInput');
+    const quickAddForm = document.getElementById('quickAddForm');
+    const quickAddToggleBtn = document.getElementById('quickAddToggleBtn');
+
+    async function persistSlidesAndPreview(){
+      const { error } = await db.from('sessions').update({ slides: slidesArr, preview_index: previewIndex }).eq('id', sessionId);
+      if(error){ console.error(error); showToastSafe('Could not update session — check connection'); }
+    }
+
+    // Splice a song's slides into the run right after the current LIVE slide,
+    // tag them adhoc, and stage Preview at the start of the inserted block.
+    // Doesn't touch current_index, so Display/Monitor don't move until TAKE.
+    async function insertSongAdhoc(song){
+      const bg = song.background || { type: 'color', value: '#0A0A0C' };
+      const batchId = 'adhoc-' + Date.now();
+      const newSlides = buildSlidesForSong(song).map(s => ({
+        text: s.text, label: s.label, background: bg, songTitle: song.title,
+        adhoc: true, adhocBatch: batchId
+      }));
+      if(newSlides.length === 0){ showToastSafe('That song has no slides to insert'); return; }
       const insertAt = liveIndex + 1;
-      slidesArr = [...slidesArr.slice(0, insertAt), ...newItems, ...slidesArr.slice(insertAt)];
+      slidesArr.splice(insertAt, 0, ...newSlides);
       previewIndex = insertAt;
       paintLocal();
-      const { error } = await db.from('sessions').update({ slides: slidesArr, preview_index: previewIndex }).eq('id', sessionId);
-      if(error){
-        console.error(error);
-        showToastSafe('Could not insert — check connection');
-      } else {
-        showToastSafe('"' + label + '" staged in Preview — hit Take when the current song ends');
-      }
-      addSongPanel.style.display = 'none';
+      await persistSlidesAndPreview();
+      closeLibraryOverlay();
+      showToastSafe('"' + (song.title || 'Untitled') + '" staged in Preview — hit TAKE when ready');
     }
 
-    async function ensureLibraryCache(){
-      if(libraryCache) return libraryCache;
-      const { data, error } = await db.from('songs').select('*').order('created_at', { ascending: false });
-      if(error){ console.error(error); showToastSafe('Could not load library'); libraryCache = []; return libraryCache; }
-      libraryCache = data || [];
-      return libraryCache;
-    }
-
-    function renderAddResults(list, query){
-      if(!query){ addSongResults.innerHTML = ''; return; }
-      const q = query.toLowerCase();
-      const matches = list.filter(s =>
-        (s.title || '').toLowerCase().includes(q) ||
-        (s.artist || '').toLowerCase().includes(q) ||
-        (s.lyrics || '').toLowerCase().includes(q) ||
-        normalizeTags(s.tags).some(t => t.toLowerCase().includes(q))
-      ).slice(0, 8);
-      if(matches.length === 0){
-        addSongResults.innerHTML = '<div style="color:#8B8D96;font-size:12.5px;font-family:Inter,sans-serif;padding:8px 2px;">No matching songs.</div>';
+    async function removeAdhocBatch(batchId){
+      const idx = slidesArr.findIndex(s => s.adhocBatch === batchId);
+      if(idx === -1) return;
+      if(idx === liveIndex || slidesArr.some((s, i) => s.adhocBatch === batchId && i === liveIndex)){
+        showToastSafe('Can\'t remove — it\'s currently live');
         return;
       }
-      addSongResults.innerHTML = matches.map(s => `
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:#0A0A0C;border:1px solid #34363E;border-radius:7px;padding:8px 10px;">
-          <span style="font-size:12.5px;font-weight:600;color:#F2F2F0;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(s.title || 'Untitled')}${s.artist ? ' — ' + escapeHtml(s.artist) : ''}</span>
-          <button data-insert-song="${s.id}" style="flex-shrink:0;background:rgba(232,163,61,0.12);border:1px solid #E8A33D;color:#E8A33D;border-radius:6px;padding:5px 10px;font-family:'JetBrains Mono',monospace;font-size:10.5px;">INSERT</button>
+      const removedCount = slidesArr.filter(s => s.adhocBatch === batchId).length;
+      const wasBeforeLive = idx < liveIndex;
+      slidesArr = slidesArr.filter(s => s.adhocBatch !== batchId);
+      if(wasBeforeLive) liveIndex -= removedCount;
+      if(previewIndex >= idx) previewIndex = Math.max(0, previewIndex - removedCount);
+      liveIndex = clampIndex(liveIndex, slidesArr.length);
+      paintLocal();
+      const { error } = await db.from('sessions').update({ slides: slidesArr, current_index: liveIndex, preview_index: previewIndex }).eq('id', sessionId);
+      if(error){ console.error(error); showToastSafe('Could not remove — check connection'); }
+      else showToastSafe('Removed from run');
+    }
+
+    function renderLibResults(){
+      const q = libSearchInput.value.trim().toLowerCase();
+      let results = allSongs;
+      if(q){
+        results = results.filter(s =>
+          (s.title || '').toLowerCase().includes(q) ||
+          (s.artist || '').toLowerCase().includes(q) ||
+          (s.lyrics || '').toLowerCase().includes(q) ||
+          (s.tags || []).some(t => t.toLowerCase().includes(q))
+        );
+      }
+      if(results.length === 0){
+        libResultsList.innerHTML = `<div style="color:#8B8D96;font-size:12.5px;font-style:italic;text-align:center;padding:16px;">${allSongs.length === 0 ? 'No saved songs yet.' : 'No matches.'}</div>`;
+        return;
+      }
+      libResultsList.innerHTML = results.map(s => `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:#2C2E36;border:1px solid #34363E;border-radius:8px;padding:10px 12px;">
+          <div style="min-width:0;flex:1;">
+            <div style="font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(s.title || 'Untitled')}</div>
+            ${s.artist ? `<div style="color:#8B8D96;font-size:11.5px;">${escapeHtml(s.artist)}</div>` : ''}
+          </div>
+          <button data-load-song="${s.id}" style="flex-shrink:0;background:rgba(139,111,209,0.15);border:1px solid #8b6fd1;color:#b09ce8;border-radius:6px;padding:7px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;">STAGE</button>
         </div>
       `).join('');
     }
 
-    toggleAddPanelBtn.addEventListener('click', async () => {
-      const showing = addSongPanel.style.display === 'block';
-      addSongPanel.style.display = showing ? 'none' : 'block';
-      if(!showing) await ensureLibraryCache();
-    });
+    async function openLibraryOverlay(){
+      libraryOverlay.style.display = 'flex';
+      libResultsList.innerHTML = `<div style="color:#8B8D96;font-size:12.5px;text-align:center;padding:16px;">Loading…</div>`;
+      await loadAllSongs();
+      renderLibResults();
+    }
+    function closeLibraryOverlay(){
+      libraryOverlay.style.display = 'none';
+      quickAddForm.style.display = 'none';
+    }
 
-    addTabLibrary.addEventListener('click', () => {
-      addTabLibrary.style.background = 'rgba(232,163,61,0.12)'; addTabLibrary.style.borderColor = '#E8A33D'; addTabLibrary.style.color = '#E8A33D';
-      addTabNew.style.background = '#2C2E36'; addTabNew.style.borderColor = '#34363E'; addTabNew.style.color = '#8B8D96';
-      addLibraryView.style.display = ''; addNewView.style.display = 'none';
-    });
-    addTabNew.addEventListener('click', () => {
-      addTabNew.style.background = 'rgba(232,163,61,0.12)'; addTabNew.style.borderColor = '#E8A33D'; addTabNew.style.color = '#E8A33D';
-      addTabLibrary.style.background = '#2C2E36'; addTabLibrary.style.borderColor = '#34363E'; addTabLibrary.style.color = '#8B8D96';
-      addNewView.style.display = ''; addLibraryView.style.display = 'none';
-    });
-
-    addSongSearch.addEventListener('input', async () => {
-      const list = await ensureLibraryCache();
-      renderAddResults(list, addSongSearch.value.trim());
-    });
-    addSongResults.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-insert-song]');
+    document.getElementById('libraryToggleBtn').addEventListener('click', openLibraryOverlay);
+    document.getElementById('libraryCloseBtn').addEventListener('click', closeLibraryOverlay);
+    libSearchInput.addEventListener('input', renderLibResults);
+    libResultsList.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-load-song]');
       if(!btn) return;
-      const song = (libraryCache || []).find(s => s.id === btn.dataset.insertSong);
-      if(!song) return;
-      const songLike = { lyrics: song.lyrics, mode: song.mode || 'blank', lineCount: song.line_count || 2, format: song.format || 'none' };
-      const built = buildSlidesForSong(songLike);
-      const bg = song.background || (slidesArr[liveIndex] && slidesArr[liveIndex].background) || { type: 'color', value: '#0A0A0C' };
-      const items = built.map(s => ({ text: s.text, label: s.label, background: bg, songTitle: song.title }));
-      insertItemsAfterLive(items, song.title || 'Untitled');
-      addSongSearch.value = '';
-      addSongResults.innerHTML = '';
+      const song = allSongs.find(s => s.id === btn.dataset.loadSong);
+      if(song) insertSongAdhoc(song);
+    });
+    quickAddToggleBtn.addEventListener('click', () => {
+      quickAddForm.style.display = quickAddForm.style.display === 'none' ? 'block' : 'none';
+    });
+    document.getElementById('qaSaveBtn').addEventListener('click', async () => {
+      const title = document.getElementById('qaTitle').value.trim();
+      const lyrics = document.getElementById('qaLyrics').value.trim();
+      if(!title || !lyrics){ showToastSafe('Add a title and lyrics first'); return; }
+      const saveBtn = document.getElementById('qaSaveBtn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving…';
+      try{
+        const { data, error } = await db.from('songs').insert({
+          title, artist: null, lyrics, mode: 'blank', line_count: 2, format: 'none',
+          tags: [], background: { type: 'color', value: '#0A0A0C' }
+        }).select().single();
+        if(error) throw error;
+        const song = {
+          id: data.id, title: data.title, artist: data.artist, lyrics: data.lyrics,
+          mode: data.mode, lineCount: data.line_count, format: data.format,
+          tags: [], background: data.background
+        };
+        allSongs.unshift(song);
+        document.getElementById('qaTitle').value = '';
+        document.getElementById('qaLyrics').value = '';
+        await insertSongAdhoc(song);
+      }catch(e){
+        console.error(e);
+        showToastSafe('Could not save song: ' + (e.message || e));
+      }finally{
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save & Stage in Preview';
+      }
     });
 
-    addNewGoBtn.addEventListener('click', () => {
-      const lyrics = addNewLyrics.value.trim();
-      if(!lyrics){ showToastSafe('Paste some lyrics first'); return; }
-      const title = addNewTitle.value.trim() || 'Untitled';
-      const bg = (slidesArr[liveIndex] && slidesArr[liveIndex].background) || { type: 'color', value: '#0A0A0C' };
-      const raw = splitByBlankLines(lyrics);
-      const items = raw.map(s => ({ text: s.text, label: s.label, background: bg, songTitle: title }));
-      insertItemsAfterLive(items, title);
-      addNewTitle.value = '';
-      addNewLyrics.value = '';
+    // -- Display text settings (size + font weight), broadcast to Display role --
+    let displaySettings = row.display_settings || { scale: 1, font: 'inter-bold' };
+    const SIZE_PRESETS = [
+      { key: 0.8,  label: 'S' },
+      { key: 1,    label: 'M' },
+      { key: 1.25, label: 'L' },
+      { key: 1.5,  label: 'XL' }
+    ];
+    const FONT_PRESETS = [
+      { key: 'inter-bold',    label: 'Bold' },
+      { key: 'inter-black',   label: 'Black' },
+      { key: 'archivo-black', label: 'Archivo' }
+    ];
+    const sizeBtnRow = document.getElementById('sizeBtnRow');
+    const fontBtnRow = document.getElementById('fontBtnRow');
+    const textSettingsPanel = document.getElementById('textSettingsPanel');
+
+    function presetBtnStyle(active){
+      return active
+        ? 'flex:1;background:rgba(74,144,217,0.18);border:1px solid #4a90d9;color:#8fc0f0;padding:9px 6px;border-radius:7px;font-family:Inter,sans-serif;font-weight:700;font-size:12.5px;'
+        : 'flex:1;background:#2C2E36;border:1px solid #34363E;color:#8B8D96;padding:9px 6px;border-radius:7px;font-family:Inter,sans-serif;font-weight:600;font-size:12.5px;';
+    }
+
+    function renderTextSettingsButtons(){
+      sizeBtnRow.innerHTML = SIZE_PRESETS.map(p =>
+        `<button data-size="${p.key}" style="${presetBtnStyle(displaySettings.scale === p.key)}">${p.label}</button>`
+      ).join('');
+      fontBtnRow.innerHTML = FONT_PRESETS.map(p =>
+        `<button data-font="${p.key}" style="${presetBtnStyle(displaySettings.font === p.key)}">${p.label}</button>`
+      ).join('');
+    }
+
+    async function updateDisplaySettings(patch){
+      displaySettings = { ...displaySettings, ...patch };
+      renderTextSettingsButtons();
+      const { error } = await db.from('sessions').update({ display_settings: displaySettings }).eq('id', sessionId);
+      if(error){
+        console.error(error);
+        showToastSafe('Could not update — add a "display_settings" jsonb column to the sessions table in Supabase');
+      } else {
+        showToastSafe('Display text updated');
+      }
+    }
+
+    document.getElementById('textSettingsToggleBtn').addEventListener('click', () => {
+      textSettingsPanel.style.display = textSettingsPanel.style.display === 'none' ? 'block' : 'none';
     });
+    sizeBtnRow.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-size]');
+      if(btn) updateDisplaySettings({ scale: parseFloat(btn.dataset.size) });
+    });
+    fontBtnRow.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-font]');
+      if(btn) updateDisplaySettings({ font: btn.dataset.font });
+    });
+    renderTextSettingsButtons();
 
     document.getElementById('presPrevBtn').addEventListener('click', () => movePreview(previewIndex - 1));
     document.getElementById('presNextBtn').addEventListener('click', () => movePreview(previewIndex + 1));
@@ -2504,6 +2589,8 @@ applyBgImageBtn.addEventListener('click', tryApplyBgImage);
       const cancelBtn = e.target.closest('[data-cancel-edit]');
       const editBtn = e.target.closest('[data-edit]');
       const jumpBtn = e.target.closest('[data-jump]');
+      const removeAdhocBtn = e.target.closest('[data-remove-adhoc]');
+      if(removeAdhocBtn){ removeAdhocBatch(removeAdhocBtn.dataset.removeAdhoc); return; }
       if(saveBtn){
         const idx = parseInt(saveBtn.dataset.saveEdit, 10);
         const ta = document.getElementById('editSlideTextarea');
